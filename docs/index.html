@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriTech AI — Farmer Advisory Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+  <!-- ── HEADER ─────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🌱</span>
+        <div>
+          <h1 class="logo-title">AgriTech AI</h1>
+          <p class="logo-sub">Farmer Advisory Platform</p>
+        </div>
+      </div>
+      <div class="status-badge" id="statusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── HERO ───────────────────────────────────────── -->
+  <section class="hero">
+    <h2 class="hero-title">AI-Powered Crop Yield Prediction</h2>
+    <p class="hero-sub">
+      Enter your farm details below. Our AI analyses your soil,
+      rainfall, and inputs to predict your yield, estimate your
+      income, and flag risks — in seconds.
+    </p>
+    <div class="hero-stats">
+      <div class="stat">
+        <span class="stat-number">6</span>
+        <span class="stat-label">Crops Supported</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number">12</span>
+        <span class="stat-label">Monthly Calendars</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number">AI</span>
+        <span class="stat-label">Risk Detection</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── MAIN CONTENT ───────────────────────────────── -->
+  <main class="main">
+
+    <!-- FARM INPUT FORM -->
+    <section class="card form-card">
+      <h2 class="card-title">
+        <span>🌾</span> Enter Your Farm Details
+      </h2>
+
+      <form id="farmForm" novalidate>
+
+        <!-- Crop selection -->
+        <div class="form-group">
+          <label for="crop">Crop Type <span class="required">*</span></label>
+          <select id="crop" name="crop" required>
+            <option value="">-- Select your crop --</option>
+            <option value="Cassava">Cassava</option>
+            <option value="Yam">Yam</option>
+            <option value="Maize">Maize</option>
+            <option value="Rice">Rice</option>
+            <option value="Groundnut">Groundnut</option>
+            <option value="Cocoa">Cocoa</option>
+          </select>
+        </div>
+
+        <!-- Two-column row -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="farmSize">Farm Size (hectares) <span class="required">*</span></label>
+            <input type="number" id="farmSize" name="farm_size_ha"
+                   min="0.1" max="100" step="0.1"
+                   placeholder="e.g. 2.5" required />
+          </div>
+          <div class="form-group">
+            <label for="rainfall">Annual Rainfall (mm) <span class="required">*</span></label>
+            <input type="number" id="rainfall" name="rainfall_mm"
+                   min="300" max="3000" step="10"
+                   placeholder="e.g. 1200" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="soilPh">Soil pH <span class="required">*</span></label>
+            <input type="number" id="soilPh" name="soil_ph"
+                   min="4.0" max="9.0" step="0.1"
+                   placeholder="e.g. 6.2" required />
+            <small class="field-hint">Optimal: 5.5 – 6.5 for most crops</small>
+          </div>
+          <div class="form-group">
+            <label for="fertilizer">Fertilizer (kg/ha) <span class="required">*</span></label>
+            <input type="number" id="fertilizer" name="fertilizer_kg"
+                   min="0" max="500" step="5"
+                   placeholder="e.g. 100" required />
+          </div>
+        </div>
+
+        <!-- Toggle inputs -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>Improved Seeds?</label>
+            <div class="toggle-group">
+              <label class="toggle-option">
+                <input type="radio" name="improved_seeds" value="true" />
+                <span class="toggle-btn">Yes</span>
+              </label>
+              <label class="toggle-option">
+                <input type="radio" name="improved_seeds" value="false" checked />
+                <span class="toggle-btn">No</span>
+              </label>
+            </div>
+            <small class="field-hint">Modern varieties from IITA / NASC</small>
+          </div>
+          <div class="form-group">
+            <label>Irrigation Available?</label>
+            <div class="toggle-group">
+              <label class="toggle-option">
+                <input type="radio" name="irrigation" value="true" />
+                <span class="toggle-btn">Yes</span>
+              </label>
+              <label class="toggle-option">
+                <input type="radio" name="irrigation" value="false" checked />
+                <span class="toggle-btn">No (rain-fed)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-predict" id="submitBtn">
+          <span id="btnText">🤖 Get AI Prediction</span>
+          <span id="btnSpinner" class="spinner hidden"></span>
+        </button>
+
+      </form>
+    </section>
+
+    <!-- RESULTS SECTION (hidden until prediction runs) -->
+    <section id="resultsSection" class="hidden">
+
+      <!-- Yield + Income card -->
+      <div class="card results-card">
+        <h2 class="card-title">
+          <span>📊</span> Prediction Results
+          <span id="resultCrop" class="crop-badge"></span>
+        </h2>
+
+        <div class="yield-banner">
+          <div class="yield-main">
+            <span class="yield-number" id="yieldTons">--</span>
+            <span class="yield-unit">tons predicted</span>
+          </div>
+          <div class="yield-farm" id="yieldFarm"></div>
+        </div>
+
+        <div class="income-grid">
+          <div class="income-box low">
+            <span class="income-label">Low Estimate</span>
+            <span class="income-value" id="incomeLow">--</span>
+          </div>
+          <div class="income-box mid">
+            <span class="income-label">Mid Estimate</span>
+            <span class="income-value" id="incomeMid">--</span>
+          </div>
+          <div class="income-box high">
+            <span class="income-label">High Estimate</span>
+            <span class="income-value" id="incomeHigh">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Risk flags card -->
+      <div class="card" id="riskCard">
+        <h2 class="card-title"><span>⚠️</span> Risk Flags</h2>
+        <div id="riskContent"></div>
+      </div>
+
+      <!-- What-if card -->
+      <div class="card whatif-card">
+        <h2 class="card-title"><span>💡</span> What If You Upgraded?</h2>
+        <div class="whatif-body">
+          <div class="whatif-compare">
+            <div class="whatif-col current">
+              <span class="whatif-label">Current Yield</span>
+              <span class="whatif-value" id="whatifCurrent">--</span>
+            </div>
+            <div class="whatif-arrow">→</div>
+            <div class="whatif-col improved">
+              <span class="whatif-label">With Full Inputs</span>
+              <span class="whatif-value" id="whatifBest">--</span>
+            </div>
+          </div>
+          <div class="whatif-uplift">
+            <span id="whatifUplift"></span>
+          </div>
+          <p class="whatif-desc">
+            Improved seeds + irrigation + 100 kg/ha fertilizer
+          </p>
+        </div>
+      </div>
+
+      <!-- Farming advice card -->
+      <div class="card">
+        <h2 class="card-title"><span>🌿</span> Personalised Farming Advice</h2>
+        <div class="advice-grid" id="adviceGrid"></div>
+      </div>
+
+      <!-- Monthly calendar card -->
+      <div class="card">
+        <h2 class="card-title"><span>📅</span> This Month's Actions</h2>
+        <div id="calendarContent"></div>
+      </div>
+
+    </section>
+
+    <!-- ERROR SECTION (hidden until error) -->
+    <div id="errorSection" class="card error-card hidden">
+      <h3>❌ Something went wrong</h3>
+      <p id="errorMessage"></p>
+      <p>Make sure the API server is running:
+        <code>python3 api/app.py</code>
+      </p>
+    </div>
+
+  </main>
+
+  <!-- ── FOOTER ─────────────────────────────────────── -->
+  <footer class="footer">
+    <p>Built by <strong>Daniel Oyanogbezina</strong> &mdash;
+       AgriTech AI Platform &mdash; Day 6 of 365</p>
+    <p class="footer-sub">
+      Empowering Nigerian farmers with AI &mdash;
+      MSc Agroforestry, FUNAAB
+    </p>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
