@@ -6,7 +6,7 @@
  *           Reads form inputs → calls API → renders results
  */
 
-const API = 'https://agritech-ai-api.onrender.com';
+const API = 'https://agritech-ai-platform.onrender.com';
 
 /* ── Utility helpers ──────────────────────────────────────── */
 
