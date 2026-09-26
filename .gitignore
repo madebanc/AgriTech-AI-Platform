@@ -1,8 +1,35 @@
+# Python virtual environment
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+
+# Jupyter checkpoints
 .ipynb_checkpoints/
-*.db
-.env
+
+# Large ML model files (EXCEPT our trained models in models/)
 *.h5
-*.pkl
+
+# Keep model files — Render needs them
+# models/*.pkl  ← intentionally NOT excluded
+
+# Database files
+*.db
+datasets/large_files/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+test_results/
