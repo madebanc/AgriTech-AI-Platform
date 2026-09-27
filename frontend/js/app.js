@@ -6,7 +6,7 @@
  *           Reads form inputs → calls API → renders results
  */
 
-const API = 'http://127.0.0.1:5001';
+const API = 'https://agritech-ai-platform.onrender.com';
 
 /* ── Utility helpers ──────────────────────────────────────── */
 
@@ -22,19 +22,42 @@ async function checkServerStatus() {
   const dot  = $('statusDot');
   const text = $('statusText');
 
-  try {
-    const res  = await fetch(`${API}/health`, { signal: AbortSignal.timeout(4000) });
-    const data = await res.json();
+  // Show waking up state first
+  dot.className    = 'status-dot';
+  text.textContent = 'Waking up...';
 
-    if (data.success && data.model_loaded) {
-      dot.className  = 'status-dot online';
-      text.textContent = 'AI Online';
-    } else {
-      dot.className  = 'status-dot offline';
-      text.textContent = 'Model not loaded';
+  try {
+    // Try up to 3 times with longer timeout
+    // Render free tier needs up to 60 seconds to wake
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        text.textContent = attempt > 1
+          ? `Waking up... (${attempt}/3)`
+          : 'Connecting...';
+
+        const res = await fetch(`${API}/health`, {
+          signal: AbortSignal.timeout(25000)  // 25 second timeout
+        });
+        const data = await res.json();
+
+        if (data.success && data.model_loaded) {
+          dot.className    = 'status-dot online';
+          text.textContent = 'AI Online';
+          return;   // success — stop retrying
+        }
+
+      } catch (err) {
+        if (attempt === 3) throw err;  // give up after 3 tries
+        // wait 5 seconds before retrying
+        await new Promise(r => setTimeout(r, 5000));
+      }
     }
+
+    dot.className    = 'status-dot offline';
+    text.textContent = 'Offline';
+
   } catch {
-    dot.className  = 'status-dot offline';
+    dot.className    = 'status-dot offline';
     text.textContent = 'Server offline';
   }
 }
@@ -188,8 +211,9 @@ $('farmForm').addEventListener('submit', async function(e) {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(data),
+        signal: AbortSignal.timeout(60000)  // 60 second timeout for cold start
       }),
-      fetch(`${API}/api/calendar/${encodeURIComponent(data.crop)}`),
+      fetch(`${API}/api/calendar/${encodeURIComponent(data.crop)}`), {signal: AbortSignal.timeout(60000)}
     ]);
 
     const predictJson  = await predictRes.json();
@@ -204,9 +228,10 @@ $('farmForm').addEventListener('submit', async function(e) {
 
   } catch (err) {
     showError(
-      `Could not reach the API server. ` +
-      `Make sure it is running: python3 api/app.py`
-    );
+  `The AI server is warming up. ` +
+  `Please wait 30 seconds and try again — ` +
+  `this only happens on the first request of the day.`
+);
   } finally {
     /* Restore button */
     $('btnText').classList.remove('hidden');
