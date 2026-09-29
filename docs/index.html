@@ -74,21 +74,39 @@
             <option value="Cocoa">Cocoa</option>
           </select>
         </div>
+        
+        <!-- State selector — new on Day 8 -->
+        <div class="form-group">
+         <label for="state">
+      Nigerian State <span class="required">*</span>
+        </label>
+         <select id="state" name="state">
+          <option value="">-- Select your state --</option>
+          </select>
+      Select your state to auto-fill rainfall data
+       </small>
+         </div>
 
         <!-- Two-column row -->
         <div class="form-row">
           <div class="form-group">
-            <label for="farmSize">Farm Size (hectares) <span class="required">*</span></label>
-            <input type="number" id="farmSize" name="farm_size_ha"
-                   min="0.1" max="100" step="0.1"
-                   placeholder="e.g. 2.5" required />
-          </div>
-          <div class="form-group">
-            <label for="rainfall">Annual Rainfall (mm) <span class="required">*</span></label>
-            <input type="number" id="rainfall" name="rainfall_mm"
-                   min="300" max="3000" step="10"
-                   placeholder="e.g. 1200" required />
-          </div>
+  <label for="rainfall">
+    Annual Rainfall (mm) <span class="required">*</span>
+    <span id="autoFillBadge"
+          style="display:none; background:#1a6b3c; color:white;
+                 font-size:.7rem; padding:.1rem .4rem;
+                 border-radius:10px; margin-left:.3rem;">
+      Auto-filled
+    </span>
+  </label>
+  <input type="number" id="rainfall" name="rainfall_mm"
+         min="300" max="3000" step="10"
+         placeholder="Select state above to auto-fill"
+         required />
+  <small class="field-hint">
+    Auto-filled from live weather data when you select a state
+  </small>
+</div>
         </div>
 
         <div class="form-row">

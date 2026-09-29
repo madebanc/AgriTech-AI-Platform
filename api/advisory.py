@@ -233,3 +233,58 @@ def get_calendar(crop: str, month: int = None) -> dict:
         "this_month":    {"month": MONTH_NAMES[month],  "task": CROP_CALENDAR[crop][month]},
         "next_month":    {"month": MONTH_NAMES[next_m], "task": CROP_CALENDAR[crop][next_m]},
     }
+    # ── Nigerian state coordinates for weather lookup ─────────────────────
+# Coordinates for the main farming area of each state
+NIGERIAN_STATES = {
+    "Abia":          {"lat": 5.4527,  "lon": 7.5248,  "region": "south_east"},
+    "Adamawa":       {"lat": 9.3265,  "lon": 12.3984, "region": "north_east"},
+    "Akwa Ibom":     {"lat": 5.0079,  "lon": 7.8497,  "region": "south_south"},
+    "Anambra":       {"lat": 6.2104,  "lon": 7.0688,  "region": "south_east"},
+    "Bauchi":        {"lat": 10.3158, "lon": 9.8442,  "region": "north_east"},
+    "Bayelsa":       {"lat": 4.7719,  "lon": 6.0699,  "region": "south_south"},
+    "Benue":         {"lat": 7.3369,  "lon": 8.7404,  "region": "north_central"},
+    "Borno":         {"lat": 11.8846, "lon": 13.1571, "region": "north_east"},
+    "Cross River":   {"lat": 5.8702,  "lon": 8.5988,  "region": "south_south"},
+    "Delta":         {"lat": 5.8904,  "lon": 5.6801,  "region": "south_south"},
+    "Ebonyi":        {"lat": 6.2649,  "lon": 8.0137,  "region": "south_east"},
+    "Edo":           {"lat": 6.5659,  "lon": 5.7153,  "region": "south_south"},
+    "Ekiti":         {"lat": 7.7190,  "lon": 5.3110,  "region": "south_west"},
+    "Enugu":         {"lat": 6.4584,  "lon": 7.5464,  "region": "south_east"},
+    "FCT Abuja":     {"lat": 9.0579,  "lon": 7.4951,  "region": "north_central"},
+    "Gombe":         {"lat": 10.2897, "lon": 11.1673, "region": "north_east"},
+    "Imo":           {"lat": 5.4921,  "lon": 7.0299,  "region": "south_east"},
+    "Jigawa":        {"lat": 12.2280, "lon": 9.5615,  "region": "north_west"},
+    "Kaduna":        {"lat": 10.5264, "lon": 7.4384,  "region": "north_west"},
+    "Kano":          {"lat": 12.0022, "lon": 8.5920,  "region": "north_west"},
+    "Katsina":       {"lat": 12.9908, "lon": 7.6018,  "region": "north_west"},
+    "Kebbi":         {"lat": 12.4539, "lon": 4.1975,  "region": "north_west"},
+    "Kogi":          {"lat": 7.7337,  "lon": 6.6906,  "region": "north_central"},
+    "Kwara":         {"lat": 8.4966,  "lon": 4.5421,  "region": "north_central"},
+    "Lagos":         {"lat": 6.5244,  "lon": 3.3792,  "region": "south_west"},
+    "Nasarawa":      {"lat": 8.4996,  "lon": 8.1997,  "region": "north_central"},
+    "Niger":         {"lat": 9.9309,  "lon": 5.5983,  "region": "north_central"},
+    "Ogun":          {"lat": 7.1601,  "lon": 3.3497,  "region": "south_west"},
+    "Ondo":          {"lat": 7.2508,  "lon": 5.2103,  "region": "south_west"},
+    "Osun":          {"lat": 7.5629,  "lon": 4.5200,  "region": "south_west"},
+    "Oyo":           {"lat": 7.3775,  "lon": 3.9470,  "region": "south_west"},
+    "Plateau":       {"lat": 9.2182,  "lon": 9.5179,  "region": "north_central"},
+    "Rivers":        {"lat": 4.8156,  "lon": 7.0498,  "region": "south_south"},
+    "Sokoto":        {"lat": 13.0059, "lon": 5.2476,  "region": "north_west"},
+    "Taraba":        {"lat": 7.8700,  "lon": 11.3696, "region": "north_east"},
+    "Yobe":          {"lat": 12.2938, "lon": 11.7467, "region": "north_east"},
+    "Zamfara":       {"lat": 12.1700, "lon": 6.6600,  "region": "north_west"},
+}
+
+# Expected annual rainfall by region (mm) — used as fallback
+REGION_RAINFALL = {
+    "south_south":  2000,
+    "south_east":   1500,
+    "south_west":   1300,
+    "north_central": 1100,
+    "north_east":    800,
+    "north_west":    600,
+}
+
+def get_state_list():
+    """Returns sorted list of all Nigerian states"""
+    return sorted(NIGERIAN_STATES.keys())

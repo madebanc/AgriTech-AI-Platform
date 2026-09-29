@@ -18,7 +18,106 @@ function hide(id)  { $(id).classList.add('hidden'); }
 
 /* ── 1. Server health check on page load ─────────────────── */
 
-async function checkServerStatus() {
+async function checkServerStatus()
+
+/* ── Load Nigerian states into dropdown ───────────────────── */
+async function loadStates() {
+  const stateSelect = $('state');
+  if (!stateSelect) return;
+
+  try {
+    const res   = await fetch(`${API}/api/states`);
+    const data  = await res.json();
+
+    if (data.success && data.states) {
+      // Clear existing options except placeholder
+      stateSelect.innerHTML =
+        '<option value="">-- Select your state --</option>';
+
+      // Add each state
+      data.states.forEach(state => {
+        const opt   = document.createElement('option');
+        opt.value   = state;
+        opt.textContent = state;
+        stateSelect.appendChild(opt);
+      });
+    }
+  } catch {
+    // If API fails, add states manually as fallback
+    const fallbackStates = [
+      "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi",
+      "Bayelsa","Benue","Borno","Cross River","Delta",
+      "Ebonyi","Edo","Ekiti","Enugu","FCT Abuja","Gombe",
+      "Imo","Jigawa","Kaduna","Kano","Katsina","Kebbi",
+      "Kogi","Kwara","Lagos","Nasarawa","Niger","Ogun",
+      "Ondo","Osun","Oyo","Plateau","Rivers","Sokoto",
+      "Taraba","Yobe","Zamfara"
+    ];
+
+    stateSelect.innerHTML =
+      '<option value="">-- Select your state --</option>';
+    fallbackStates.forEach(s => {
+      const opt       = document.createElement('option');
+      opt.value       = s;
+      opt.textContent = s;
+      stateSelect.appendChild(opt);
+    });
+  }
+}
+
+
+/* ── Auto-fetch rainfall when state is selected ───────────── */
+async function onStateChange(selectedState) {
+  const rainfallInput  = $('rainfall');
+  const hint           = $('rainfallHint');
+  const badge          = $('autoFillBadge');
+
+  if (!selectedState) {
+    rainfallInput.placeholder = 'Select state above to auto-fill';
+    if (hint)  hint.textContent = 'Select your state to auto-fill rainfall data';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+
+  // Show loading state
+  rainfallInput.placeholder = 'Fetching weather data...';
+  rainfallInput.value       = '';
+  if (hint)  hint.textContent = `Getting rainfall data for ${selectedState}...`;
+  if (badge) badge.style.display = 'none';
+
+  try {
+    const res  = await fetch(
+      `${API}/api/weather/${encodeURIComponent(selectedState)}`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    const data = await res.json();
+
+    if (data.success && data.weather) {
+      const mm = data.weather.recommended_input_mm;
+      rainfallInput.value = mm;
+
+      const source = data.weather.source || 'regional data';
+
+      if (hint) {
+        hint.textContent =
+          `${selectedState}: ~${mm}mm/year (${source})`;
+      }
+      if (badge) badge.style.display = 'inline';
+
+    } else {
+      rainfallInput.placeholder = 'Enter rainfall manually (mm)';
+      if (hint) hint.textContent = 'Could not fetch data — enter manually';
+    }
+
+  } catch {
+    rainfallInput.placeholder = 'Enter rainfall manually (mm)';
+    if (hint) {
+      hint.textContent =
+        'Auto-fill unavailable — enter your annual rainfall in mm';
+    }
+  }
+}
+{
   const dot  = $('statusDot');
   const text = $('statusText');
 
@@ -241,4 +340,16 @@ $('farmForm').addEventListener('submit', async function(e) {
 });
 
 /* ── 6. Initialise ────────────────────────────────────────── */
+/* ── Initialise ───────────────────────────────────────────── */
 checkServerStatus();
+loadStates();
+
+// State dropdown change handler
+document.addEventListener('DOMContentLoaded', () => {
+  const stateSelect = $('state');
+  if (stateSelect) {
+    stateSelect.addEventListener('change', function() {
+      onStateChange(this.value);
+    });
+  }
+});

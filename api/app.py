@@ -11,6 +11,8 @@ Test:  curl http://127.0.0.1:5001/health
 
 import sys
 import os
+import urllib.request
+import json as json_lib
 
 # Make sure Python can find advisory.py and predictor.py
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -21,7 +23,7 @@ import datetime
 
 from advisory  import (
     SUPPORTED_CROPS, CROP_ADVICE,
-    get_calendar, MONTH_NAMES,
+    get_calendar, MONTH_NAMES, NIGERIAN_STATES, REGION_RAINFALL, get_state_list
 )
 from predictor import predict_and_advise, MODEL_LOADED
 
@@ -253,6 +255,120 @@ def method_not_allowed(e):
 @app.errorhandler(500)
 def server_error(e):
     return error_response("Internal server error.", 500)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ENDPOINT 7 — State weather data
+# GET /api/weather/<state>
+# Returns real rainfall data for a Nigerian state
+# Uses Open-Meteo API (free, no API key needed)
+# ─────────────────────────────────────────────────────────────────────
+@app.route("/api/weather/<state>", methods=["GET"])
+def get_state_weather(state):
+    """
+    Fetches real current weather data for a Nigerian state.
+    Returns annual rainfall estimate based on recent data.
+    Farmer selects state → rainfall fills automatically.
+    """
+    # Find state in our database
+    state_title = state.strip().title()
+
+    # Try to find the state (flexible matching)
+    matched_state = None
+    for s in NIGERIAN_STATES:
+        if s.lower() == state.lower() or \
+           s.lower().replace(" ", "") == state.lower().replace(" ", ""):
+            matched_state = s
+            break
+
+    if not matched_state:
+        return error_response(
+            f"State '{state}' not found. "
+            f"Use /api/states for the full list."
+        )
+
+    coords    = NIGERIAN_STATES[matched_state]
+    lat, lon  = coords["lat"], coords["lon"]
+    region    = coords["region"]
+
+    # Fetch real weather from Open-Meteo (free, no key)
+    try:
+        weather_url = (
+            f"https://api.open-meteo.com/v1/forecast"
+            f"?latitude={lat}&longitude={lon}"
+            f"&daily=precipitation_sum"
+            f"&timezone=Africa%2FLagos"
+            f"&past_days=30"
+            f"&forecast_days=1"
+        )
+
+        req      = urllib.request.Request(
+            weather_url,
+            headers={"User-Agent": "AgriTechAI/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            raw      = resp.read().decode()
+            wdata    = json_lib.loads(raw)
+
+        # Sum last 30 days of rainfall
+        daily_rain   = wdata.get("daily", {}).get("precipitation_sum", [])
+        rain_30_days = sum(r for r in daily_rain if r is not None)
+
+        # Extrapolate to annual estimate
+        annual_estimate = round(rain_30_days * 12)
+
+        # Apply regional adjustment
+        # (30-day window may not represent full season)
+        regional_typical = REGION_RAINFALL[region]
+        blended = round((annual_estimate * 0.4) + (regional_typical * 0.6))
+
+        return ok_response({
+            "state":            matched_state,
+            "region":           region,
+            "coordinates":      {"lat": lat, "lon": lon},
+            "weather": {
+                "rainfall_30_days_mm":    round(rain_30_days, 1),
+                "annual_estimate_mm":     annual_estimate,
+                "recommended_input_mm":   blended,
+                "source":                 "Open-Meteo + regional data",
+            },
+            "farming_context": {
+                "typical_annual_mm": regional_typical,
+                "note": (
+                    "Use recommended_input_mm as your rainfall value. "
+                    "This blends recent weather with historical regional data."
+                ),
+            },
+        })
+
+    except Exception as e:
+        # Fallback to regional average if API fails
+        regional_typical = REGION_RAINFALL[region]
+        return ok_response({
+            "state":    matched_state,
+            "region":   region,
+            "weather": {
+                "recommended_input_mm": regional_typical,
+                "source":               "regional historical average (live data unavailable)",
+            },
+            "farming_context": {
+                "typical_annual_mm": regional_typical,
+                "note": "Live weather unavailable. Using historical regional average.",
+            },
+        })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ENDPOINT 8 — List all Nigerian states
+# GET /api/states
+# ─────────────────────────────────────────────────────────────────────
+@app.route("/api/states", methods=["GET"])
+def list_states():
+    """Returns all supported Nigerian states"""
+    return ok_response({
+        "count":  len(NIGERIAN_STATES),
+        "states": get_state_list(),
+    })
 
 
 # ─────────────────────────────────────────────────────────────────────
