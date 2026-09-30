@@ -25,43 +25,42 @@ async function loadStates() {
   const stateSelect = $('state');
   if (!stateSelect) return;
 
-  try {
-    const res   = await fetch(`${API}/api/states`);
-    const data  = await res.json();
+  // Hardcoded fallback — always works even if API is down
+  const fallbackStates = [
+    "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi",
+    "Bayelsa","Benue","Borno","Cross River","Delta",
+    "Ebonyi","Edo","Ekiti","Enugu","FCT Abuja","Gombe",
+    "Imo","Jigawa","Kaduna","Kano","Katsina","Kebbi",
+    "Kogi","Kwara","Lagos","Nasarawa","Niger","Ogun",
+    "Ondo","Osun","Oyo","Plateau","Rivers","Sokoto",
+    "Taraba","Yobe","Zamfara"
+  ];
 
-    if (data.success && data.states) {
-      // Clear existing options except placeholder
-      stateSelect.innerHTML =
-        '<option value="">-- Select your state --</option>';
-
-      // Add each state
-      data.states.forEach(state => {
-        const opt   = document.createElement('option');
-        opt.value   = state;
-        opt.textContent = state;
-        stateSelect.appendChild(opt);
-      });
-    }
-  } catch {
-    // If API fails, add states manually as fallback
-    const fallbackStates = [
-      "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi",
-      "Bayelsa","Benue","Borno","Cross River","Delta",
-      "Ebonyi","Edo","Ekiti","Enugu","FCT Abuja","Gombe",
-      "Imo","Jigawa","Kaduna","Kano","Katsina","Kebbi",
-      "Kogi","Kwara","Lagos","Nasarawa","Niger","Ogun",
-      "Ondo","Osun","Oyo","Plateau","Rivers","Sokoto",
-      "Taraba","Yobe","Zamfara"
-    ];
-
+  function populateStates(states) {
     stateSelect.innerHTML =
       '<option value="">-- Select your state --</option>';
-    fallbackStates.forEach(s => {
+    states.forEach(s => {
       const opt       = document.createElement('option');
       opt.value       = s;
       opt.textContent = s;
       stateSelect.appendChild(opt);
     });
+  }
+
+  // Try live API first
+  try {
+    const res  = await fetch(`${API}/api/states`,
+                   { signal: AbortSignal.timeout(8000) });
+    const data = await res.json();
+
+    if (data.success && data.states && data.states.length > 0) {
+      populateStates(data.states);   // use live list
+    } else {
+      populateStates(fallbackStates); // API returned error — use fallback
+    }
+
+  } catch {
+    populateStates(fallbackStates);   // network error — use fallback
   }
 }
 
