@@ -1,89 +1,88 @@
 /**
- * app.js
- * AgriTech AI Platform — Frontend Logic
- * Author  : Daniel Oyanogbezina
- * Purpose : Connects the HTML form to the Day 5 Flask API
- *           Reads form inputs → calls API → renders results
+ * app.js — AgriTech AI Platform Frontend
+ * Author : Daniel Oyanogbezina
+ * Purpose: Connects the form to the Flask API
+ *          Handles state selection, rainfall auto-fill,
+ *          prediction requests, and result rendering
  */
 
+/* ── Configuration ─────────────────────────────────────── */
 const API = 'https://agritech-ai-platform.onrender.com';
 
-/* ── Utility helpers ──────────────────────────────────────── */
+/* ── Rainfall defaults by state (fallback if API fails) ── */
+const STATE_RAINFALL = {
+  "Abia": 1500, "Adamawa": 900, "Akwa Ibom": 2000,
+  "Anambra": 1500, "Bauchi": 850, "Bayelsa": 2200,
+  "Benue": 1100, "Borno": 700, "Cross River": 1800,
+  "Delta": 1800, "Ebonyi": 1500, "Edo": 1600,
+  "Ekiti": 1300, "Enugu": 1400, "FCT Abuja": 1100,
+  "Gombe": 800, "Imo": 1600, "Jigawa": 600,
+  "Kaduna": 900, "Kano": 650, "Katsina": 600,
+  "Kebbi": 550, "Kogi": 1100, "Kwara": 1000,
+  "Lagos": 1450, "Nasarawa": 1100, "Niger": 1100,
+  "Ogun": 1200, "Ondo": 1400, "Osun": 1200,
+  "Oyo": 1200, "Plateau": 1300, "Rivers": 2000,
+  "Sokoto": 500, "Taraba": 1000, "Yobe": 600,
+  "Zamfara": 600
+};
 
-const $  = id => document.getElementById(id);
-const fmt = n  => `₦${Number(n).toLocaleString('en-NG')}`;
+/* ── Helper functions ──────────────────────────────────── */
+const $   = id => document.getElementById(id);
+const fmt = n  => '\u20a6' + Number(n).toLocaleString('en-NG');
 
-function show(id)  { $(id).classList.remove('hidden'); }
-function hide(id)  { $(id).classList.add('hidden'); }
+function show(id) { $(id).classList.remove('hidden'); }
+function hide(id) { $(id).classList.add('hidden');    }
 
-/* ── 1. Server health check on page load ─────────────────── */
+/* ── 1. Server health check ────────────────────────────── */
+async function checkServerStatus() {
+  const dot  = $('statusDot');
+  const text = $('statusText');
 
-async function checkServerStatus()
+  dot.className    = 'status-dot';
+  text.textContent = 'Connecting...';
 
-/* ── Load Nigerian states into dropdown ───────────────────── */
-async function loadStates() {
-  const stateSelect = $('state');
-  if (!stateSelect) return;
-
-  // Hardcoded fallback — always works even if API is down
-  const fallbackStates = [
-    "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi",
-    "Bayelsa","Benue","Borno","Cross River","Delta",
-    "Ebonyi","Edo","Ekiti","Enugu","FCT Abuja","Gombe",
-    "Imo","Jigawa","Kaduna","Kano","Katsina","Kebbi",
-    "Kogi","Kwara","Lagos","Nasarawa","Niger","Ogun",
-    "Ondo","Osun","Oyo","Plateau","Rivers","Sokoto",
-    "Taraba","Yobe","Zamfara"
-  ];
-
-  function populateStates(states) {
-    stateSelect.innerHTML =
-      '<option value="">-- Select your state --</option>';
-    states.forEach(s => {
-      const opt       = document.createElement('option');
-      opt.value       = s;
-      opt.textContent = s;
-      stateSelect.appendChild(opt);
-    });
-  }
-
-  // Try live API first
   try {
-    const res  = await fetch(`${API}/api/states`,
-                   { signal: AbortSignal.timeout(8000) });
+    const res  = await fetch(`${API}/health`,
+                   { signal: AbortSignal.timeout(20000) });
     const data = await res.json();
 
-    if (data.success && data.states && data.states.length > 0) {
-      populateStates(data.states);   // use live list
+    if (data.success && data.model_loaded) {
+      dot.className    = 'status-dot online';
+      text.textContent = 'AI Online';
     } else {
-      populateStates(fallbackStates); // API returned error — use fallback
+      dot.className    = 'status-dot offline';
+      text.textContent = 'Model not loaded';
     }
-
   } catch {
-    populateStates(fallbackStates);   // network error — use fallback
+    dot.className    = 'status-dot offline';
+    text.textContent = 'Server offline';
   }
 }
 
-
-/* ── Auto-fetch rainfall when state is selected ───────────── */
+/* ── 2. Auto-fill rainfall when state is selected ──────── */
 async function onStateChange(selectedState) {
-  const rainfallInput  = $('rainfall');
-  const hint           = $('rainfallHint');
-  const badge          = $('autoFillBadge');
+  const rainfallInput = $('rainfall');
+  const hint          = $('rainfallHint');
+  const badge         = $('autoFillBadge');
 
+  /* Clear if placeholder selected */
   if (!selectedState) {
+    rainfallInput.value       = '';
     rainfallInput.placeholder = 'Select state above to auto-fill';
-    if (hint)  hint.textContent = 'Select your state to auto-fill rainfall data';
+    if (hint)  hint.textContent = 'Auto-filled from weather data when you select a state';
     if (badge) badge.style.display = 'none';
     return;
   }
 
-  // Show loading state
-  rainfallInput.placeholder = 'Fetching weather data...';
-  rainfallInput.value       = '';
-  if (hint)  hint.textContent = `Getting rainfall data for ${selectedState}...`;
-  if (badge) badge.style.display = 'none';
+  /* Step 1: Immediately fill from local lookup (instant) */
+  const localRainfall = STATE_RAINFALL[selectedState];
+  if (localRainfall) {
+    rainfallInput.value = localRainfall;
+    if (hint)  hint.textContent = `${selectedState}: ~${localRainfall}mm/year (regional estimate)`;
+    if (badge) badge.style.display = 'inline';
+  }
 
+  /* Step 2: Try to improve with live API data */
   try {
     const res  = await fetch(
       `${API}/api/weather/${encodeURIComponent(selectedState)}`,
@@ -91,119 +90,53 @@ async function onStateChange(selectedState) {
     );
     const data = await res.json();
 
-    if (data.success && data.weather) {
+    if (data.success && data.weather &&
+        data.weather.recommended_input_mm) {
       const mm = data.weather.recommended_input_mm;
       rainfallInput.value = mm;
-
-      const source = data.weather.source || 'regional data';
-
       if (hint) {
         hint.textContent =
-          `${selectedState}: ~${mm}mm/year (${source})`;
+          `${selectedState}: ~${mm}mm/year (live weather data)`;
       }
-      if (badge) badge.style.display = 'inline';
-
-    } else {
-      rainfallInput.placeholder = 'Enter rainfall manually (mm)';
-      if (hint) hint.textContent = 'Could not fetch data — enter manually';
     }
+    /* If API fails, keep the local value already filled */
 
   } catch {
-    rainfallInput.placeholder = 'Enter rainfall manually (mm)';
-    if (hint) {
+    /* Keep local value — no need to show error */
+    if (hint && localRainfall) {
       hint.textContent =
-        'Auto-fill unavailable — enter your annual rainfall in mm';
+        `${selectedState}: ~${localRainfall}mm/year (estimated)`;
     }
   }
 }
-{
-  const dot  = $('statusDot');
-  const text = $('statusText');
 
-  // Show waking up state first
-  dot.className    = 'status-dot';
-  text.textContent = 'Waking up...';
-
-  try {
-    // Try up to 3 times with longer timeout
-    // Render free tier needs up to 60 seconds to wake
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        text.textContent = attempt > 1
-          ? `Waking up... (${attempt}/3)`
-          : 'Connecting...';
-
-        const res = await fetch(`${API}/health`, {
-          signal: AbortSignal.timeout(25000)  // 25 second timeout
-        });
-        const data = await res.json();
-
-        if (data.success && data.model_loaded) {
-          dot.className    = 'status-dot online';
-          text.textContent = 'AI Online';
-          return;   // success — stop retrying
-        }
-
-      } catch (err) {
-        if (attempt === 3) throw err;  // give up after 3 tries
-        // wait 5 seconds before retrying
-        await new Promise(r => setTimeout(r, 5000));
-      }
-    }
-
-    dot.className    = 'status-dot offline';
-    text.textContent = 'Offline';
-
-  } catch {
-    dot.className    = 'status-dot offline';
-    text.textContent = 'Server offline';
-  }
-}
-
-/* ── 2. Form validation ───────────────────────────────────── */
-
-function validateForm(data) {
-  const errors = [];
-
-  if (!data.crop)
-    errors.push('Please select a crop.');
-  if (!data.farm_size_ha || data.farm_size_ha < 0.1 || data.farm_size_ha > 100)
-    errors.push('Farm size must be between 0.1 and 100 hectares.');
-  if (!data.rainfall_mm || data.rainfall_mm < 300 || data.rainfall_mm > 3000)
-    errors.push('Rainfall must be between 300 and 3000 mm.');
-  if (!data.soil_ph || data.soil_ph < 4.0 || data.soil_ph > 9.0)
-    errors.push('Soil pH must be between 4.0 and 9.0.');
-  if (data.fertilizer_kg === '' || data.fertilizer_kg < 0 || data.fertilizer_kg > 500)
-    errors.push('Fertilizer must be between 0 and 500 kg/ha.');
-
-  return errors;
-}
-
-/* ── 3. Render results into the DOM ───────────────────────── */
-
+/* ── 3. Render prediction results ──────────────────────── */
 function renderResults(result, calendarData) {
-
   const { crop, farm_size_ha, prediction,
           advice, risk_flags, what_if } = result;
 
   /* Yield + income */
-  $('resultCrop').textContent  = crop;
-  $('yieldTons').textContent   = prediction.yield_tons;
-  $('yieldFarm').textContent   = `${farm_size_ha} ha farm`;
-  $('incomeLow').textContent   = fmt(prediction.income_low_ngn);
-  $('incomeMid').textContent   = fmt(prediction.income_mid_ngn);
-  $('incomeHigh').textContent  = fmt(prediction.income_high_ngn);
+  $('resultCrop').textContent = crop;
+  $('yieldTons').textContent  = prediction.yield_tons;
+  $('yieldFarm').textContent  = `${farm_size_ha} ha farm`;
+  $('incomeLow').textContent  = fmt(prediction.income_low_ngn);
+  $('incomeMid').textContent  = fmt(prediction.income_mid_ngn);
+  $('incomeHigh').textContent = fmt(prediction.income_high_ngn);
 
   /* Risk flags */
   const riskEl = $('riskContent');
-  if (risk_flags.length === 0) {
+  if (!risk_flags || risk_flags.length === 0) {
     riskEl.innerHTML =
-      `<div class="no-risk">✅ No risk flags — your farm setup looks good!</div>`;
+      `<div class="no-risk">
+         No risk flags detected — your farm setup looks good!
+       </div>`;
   } else {
     riskEl.innerHTML =
       `<ul class="risk-list">` +
       risk_flags.map(r =>
-        `<li class="risk-item"><span>⚠️</span><span>${r}</span></li>`
+        `<li class="risk-item">
+           <span>!</span><span>${r}</span>
+         </li>`
       ).join('') +
       `</ul>`;
   }
@@ -214,7 +147,7 @@ function renderResults(result, calendarData) {
   $('whatifUplift').textContent  =
     `+${what_if.uplift_percent}% potential uplift with better inputs`;
 
-  /* Farming advice */
+  /* Farming advice grid */
   const adviceItems = [
     { label: 'Planting Season', value: advice.season },
     { label: 'Spacing',         value: advice.spacing },
@@ -233,8 +166,8 @@ function renderResults(result, calendarData) {
      </div>`
   ).join('');
 
-  /* Monthly calendar */
-  const cal = calendarData?.calendar;
+  /* Crop calendar */
+  const cal = calendarData && calendarData.calendar;
   if (cal) {
     $('calendarContent').innerHTML =
       `<div class="calendar-grid">
@@ -253,19 +186,15 @@ function renderResults(result, calendarData) {
          </div>
        </div>`;
   } else {
-    $('calendarContent').textContent = 'Calendar data unavailable.';
+    $('calendarContent').textContent = 'Calendar unavailable.';
   }
 
-  /* Show results, hide error */
   show('resultsSection');
   hide('errorSection');
-
-  /* Smooth scroll to results */
-  $('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('resultsSection').scrollIntoView({ behavior: 'smooth' });
 }
 
-/* ── 4. Show error ────────────────────────────────────────── */
-
+/* ── 4. Show error ─────────────────────────────────────── */
 function showError(message) {
   $('errorMessage').textContent = message;
   show('errorSection');
@@ -273,20 +202,42 @@ function showError(message) {
   $('errorSection').scrollIntoView({ behavior: 'smooth' });
 }
 
-/* ── 5. Form submission ───────────────────────────────────── */
+/* ── 5. Form validation ────────────────────────────────── */
+function validateForm(data) {
+  const errors = [];
+  if (!data.crop)
+    errors.push('Please select a crop type.');
+  if (!data.state)
+    errors.push('Please select your Nigerian state.');
+  if (!data.farm_size_ha || data.farm_size_ha < 0.1)
+    errors.push('Farm size must be at least 0.1 hectares.');
+  if (!data.rainfall_mm || data.rainfall_mm < 300)
+    errors.push('Rainfall must be at least 300mm. Select a state to auto-fill.');
+  if (!data.soil_ph || data.soil_ph < 4.0 || data.soil_ph > 9.0)
+    errors.push('Soil pH must be between 4.0 and 9.0.');
+  if (data.fertilizer_kg === undefined || data.fertilizer_kg === '')
+    errors.push('Please enter fertilizer amount (enter 0 if none used).');
+  return errors;
+}
 
-$('farmForm').addEventListener('submit', async function(e) {
+/* ── 6. Form submission ────────────────────────────────── */
+$('farmForm').addEventListener('submit', async function (e) {
   e.preventDefault();
 
-  /* Collect form values */
+  /* Collect values */
   const data = {
-    crop:           $('crop').value,
-    farm_size_ha:   parseFloat($('farmSize').value),
-    rainfall_mm:    parseFloat($('rainfall').value),
-    soil_ph:        parseFloat($('soilPh').value),
-    fertilizer_kg:  parseFloat($('fertilizer').value),
-    improved_seeds: document.querySelector('input[name="improved_seeds"]:checked')?.value === 'true',
-    irrigation:     document.querySelector('input[name="irrigation"]:checked')?.value === 'true',
+    crop:          $('crop').value,
+    state:         $('state').value,
+    farm_size_ha:  parseFloat($('farmSize').value),
+    rainfall_mm:   parseFloat($('rainfall').value),
+    soil_ph:       parseFloat($('soilPh').value),
+    fertilizer_kg: parseFloat($('fertilizer').value) || 0,
+    improved_seeds:
+      document.querySelector('input[name="improved_seeds"]:checked')
+              ?.value === 'true',
+    irrigation:
+      document.querySelector('input[name="irrigation"]:checked')
+              ?.value === 'true',
   };
 
   /* Validate */
@@ -301,24 +252,31 @@ $('farmForm').addEventListener('submit', async function(e) {
   $('btnText').classList.add('hidden');
   $('btnSpinner').classList.remove('hidden');
   btn.disabled = true;
+  hide('errorSection');
 
   try {
-    /* Call /api/predict */
+    /* Call API */
     const [predictRes, calendarRes] = await Promise.all([
       fetch(`${API}/api/predict`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(data),
-        signal: AbortSignal.timeout(60000)  // 60 second timeout for cold start
+        signal:  AbortSignal.timeout(60000),
       }),
-      fetch(`${API}/api/calendar/${encodeURIComponent(data.crop)}`), {signal: AbortSignal.timeout(60000)}
+      fetch(
+        `${API}/api/calendar/${encodeURIComponent(data.crop)}`,
+        { signal: AbortSignal.timeout(60000) }
+      ),
     ]);
 
     const predictJson  = await predictRes.json();
     const calendarJson = await calendarRes.json();
 
     if (!predictJson.success) {
-      showError(predictJson.error || 'Prediction failed. Please try again.');
+      showError(
+        predictJson.error ||
+        'Prediction failed. Please check your inputs and try again.'
+      );
       return;
     }
 
@@ -326,29 +284,21 @@ $('farmForm').addEventListener('submit', async function(e) {
 
   } catch (err) {
     showError(
-  `The AI server is warming up. ` +
-  `Please wait 30 seconds and try again — ` +
-  `this only happens on the first request of the day.`
-);
+      'The AI server is warming up. ' +
+      'Please wait 30 seconds and try again. ' +
+      'This only happens on the first request of the day.'
+    );
   } finally {
-    /* Restore button */
     $('btnText').classList.remove('hidden');
     $('btnSpinner').classList.add('hidden');
     btn.disabled = false;
   }
 });
 
-/* ── 6. Initialise ────────────────────────────────────────── */
-/* ── Initialise ───────────────────────────────────────────── */
-checkServerStatus();
-loadStates();
-
-// State dropdown change handler
-document.addEventListener('DOMContentLoaded', () => {
-  const stateSelect = $('state');
-  if (stateSelect) {
-    stateSelect.addEventListener('change', function() {
-      onStateChange(this.value);
-    });
-  }
+/* ── 7. State change listener ──────────────────────────── */
+$('state').addEventListener('change', function () {
+  onStateChange(this.value);
 });
+
+/* ── 8. Initialise on page load ────────────────────────── */
+checkServerStatus();
