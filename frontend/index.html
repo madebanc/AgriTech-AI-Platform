@@ -15,35 +15,61 @@
         <span class="logo-icon">🌱</span>
         <div>
           <h1 class="logo-title">AgriTech AI</h1>
-          <p class="logo-sub">Farmer Advisory Platform</p>
+          <p class="logo-sub" data-i18n="app_sub">Farmer Advisory Platform</p>
         </div>
       </div>
-      <div class="status-badge" id="statusBadge">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Connecting...</span>
+
+      <!-- Right side: language buttons + status -->
+      <div style="display:flex; align-items:center; gap:.75rem; flex-wrap:wrap;">
+
+        <!-- Language toggle -->
+        <div class="lang-switcher">
+          <button class="lang-btn lang-active"
+                  data-lang="en"
+                  onclick="LANG.setLanguage('en')">EN</button>
+          <button class="lang-btn"
+                  data-lang="yo"
+                  onclick="LANG.setLanguage('yo')">YO</button>
+          <button class="lang-btn"
+                  data-lang="ha"
+                  onclick="LANG.setLanguage('ha')">HA</button>
+          <button class="lang-btn"
+                  data-lang="ig"
+                  onclick="LANG.setLanguage('ig')">IG</button>
+        </div>
+
+        <!-- Status badge -->
+        <div class="status-badge" id="statusBadge">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText"
+                data-i18n="status_connecting">Connecting...</span>
+        </div>
+
       </div>
     </div>
   </header>
 
   <!-- HERO -->
   <section class="hero">
-    <h2 class="hero-title">AI-Powered Crop Yield Prediction</h2>
-    <p class="hero-sub">
+    <h2 class="hero-title" data-i18n="hero_title">
+      AI-Powered Crop Yield Prediction
+    </h2>
+    <p class="hero-sub" data-i18n="hero_sub">
       Select your state and crop. Our AI analyses your conditions
       to predict yield, estimate income, and flag risks — in seconds.
     </p>
     <div class="hero-stats">
       <div class="stat">
         <span class="stat-number">6</span>
-        <span class="stat-label">Crops Supported</span>
+        <span class="stat-label" data-i18n="stat_crops">Crops Supported</span>
       </div>
       <div class="stat">
         <span class="stat-number">37</span>
-        <span class="stat-label">Nigerian States</span>
+        <span class="stat-label" data-i18n="stat_states">Nigerian States</span>
       </div>
       <div class="stat">
         <span class="stat-number">AI</span>
-        <span class="stat-label">Risk Detection</span>
+        <span class="stat-label" data-i18n="stat_ai">Risk Detection</span>
       </div>
     </div>
   </section>
@@ -54,7 +80,8 @@
     <!-- FORM CARD -->
     <section class="card form-card">
       <h2 class="card-title">
-        <span>🌾</span> Enter Your Farm Details
+        <span>🌾</span>
+        <span data-i18n="form_title">Enter Your Farm Details</span>
       </h2>
 
       <form id="farmForm" novalidate>
@@ -62,9 +89,13 @@
         <!-- Row 1: Crop + State -->
         <div class="form-row">
           <div class="form-group">
-            <label for="crop">Crop Type <span class="required">*</span></label>
+            <label for="crop">
+              <span data-i18n="label_crop">Crop Type</span>
+              <span class="required">*</span>
+            </label>
             <select id="crop" name="crop" required>
-              <option value="">-- Select your crop --</option>
+              <option value=""
+                      data-i18n="ph_crop">-- Select your crop --</option>
               <option value="Cassava">Cassava</option>
               <option value="Yam">Yam</option>
               <option value="Maize">Maize</option>
@@ -76,11 +107,12 @@
 
           <div class="form-group">
             <label for="state">
-              Nigerian State <span class="required">*</span>
+              <span data-i18n="label_state">Nigerian State</span>
+              <span class="required">*</span>
             </label>
-            <!-- States hardcoded — no JS needed to populate -->
             <select id="state" name="state" required>
-              <option value="">-- Select your state --</option>
+              <option value=""
+                      data-i18n="ph_state">-- Select your state --</option>
               <option value="Abia">Abia</option>
               <option value="Adamawa">Adamawa</option>
               <option value="Akwa Ibom">Akwa Ibom</option>
@@ -119,7 +151,8 @@
               <option value="Yobe">Yobe</option>
               <option value="Zamfara">Zamfara</option>
             </select>
-            <small class="field-hint" id="stateHint">
+            <small class="field-hint" id="stateHint"
+                   data-i18n="hint_rainfall">
               Select your state to auto-fill rainfall
             </small>
           </div>
@@ -129,29 +162,33 @@
         <div class="form-row">
           <div class="form-group">
             <label for="farmSize">
-              Farm Size (hectares) <span class="required">*</span>
+              <span data-i18n="label_farm_size">Farm Size (hectares)</span>
+              <span class="required">*</span>
             </label>
             <input type="number" id="farmSize" name="farm_size_ha"
                    min="0.1" max="100" step="0.1"
+                   data-i18n-ph="ph_farm_size"
                    placeholder="e.g. 2.5" required />
           </div>
 
           <div class="form-group">
             <label for="rainfall">
-              Annual Rainfall (mm) <span class="required">*</span>
+              <span data-i18n="label_rainfall">Annual Rainfall (mm)</span>
+              <span class="required">*</span>
               <span id="autoFillBadge"
+                    data-i18n="autofill_badge"
                     style="display:none; background:#1a6b3c; color:white;
                            font-size:.7rem; padding:.15rem .5rem;
                            border-radius:10px; margin-left:.3rem;
-                           font-weight:600;">
-                Auto-filled
-              </span>
+                           font-weight:600;">Auto-filled</span>
             </label>
             <input type="number" id="rainfall" name="rainfall_mm"
                    min="300" max="3000" step="10"
+                   data-i18n-ph="ph_rainfall"
                    placeholder="Select state above to auto-fill"
                    required />
-            <small class="field-hint" id="rainfallHint">
+            <small class="field-hint" id="rainfallHint"
+                   data-i18n="hint_rainfall">
               Auto-filled from weather data when you select a state
             </small>
           </div>
@@ -161,20 +198,27 @@
         <div class="form-row">
           <div class="form-group">
             <label for="soilPh">
-              Soil pH <span class="required">*</span>
+              <span data-i18n="label_soil_ph">Soil pH</span>
+              <span class="required">*</span>
             </label>
             <input type="number" id="soilPh" name="soil_ph"
                    min="4.0" max="9.0" step="0.1"
+                   data-i18n-ph="ph_soil_ph"
                    placeholder="e.g. 6.2" required />
-            <small class="field-hint">Optimal: 5.5 – 6.5 for most crops</small>
+            <small class="field-hint"
+                   data-i18n="hint_soil_ph">
+              Optimal: 5.5 – 6.5 for most crops
+            </small>
           </div>
 
           <div class="form-group">
             <label for="fertilizer">
-              Fertilizer (kg/ha) <span class="required">*</span>
+              <span data-i18n="label_fertilizer">Fertilizer (kg/ha)</span>
+              <span class="required">*</span>
             </label>
             <input type="number" id="fertilizer" name="fertilizer_kg"
                    min="0" max="500" step="5"
+                   data-i18n-ph="ph_fertilizer"
                    placeholder="e.g. 100" required />
           </div>
         </div>
@@ -182,99 +226,122 @@
         <!-- Row 4: Toggles -->
         <div class="form-row">
           <div class="form-group">
-            <label>Improved Seeds?</label>
+            <label data-i18n="label_seeds">Improved Seeds?</label>
             <div class="toggle-group">
               <label class="toggle-option">
                 <input type="radio" name="improved_seeds" value="true" />
-                <span class="toggle-btn">Yes</span>
+                <span class="toggle-btn"
+                      data-i18n="seeds_yes">Yes</span>
               </label>
               <label class="toggle-option">
                 <input type="radio" name="improved_seeds"
                        value="false" checked />
-                <span class="toggle-btn">No</span>
+                <span class="toggle-btn"
+                      data-i18n="seeds_no">No</span>
               </label>
             </div>
-            <small class="field-hint">Modern varieties from IITA / NASC</small>
+            <small class="field-hint"
+                   data-i18n="hint_seeds">
+              Modern varieties from IITA / NASC
+            </small>
           </div>
 
           <div class="form-group">
-            <label>Irrigation Available?</label>
+            <label data-i18n="label_irrigation">Irrigation Available?</label>
             <div class="toggle-group">
               <label class="toggle-option">
                 <input type="radio" name="irrigation" value="true" />
-                <span class="toggle-btn">Yes</span>
+                <span class="toggle-btn"
+                      data-i18n="irrigation_yes">Yes</span>
               </label>
               <label class="toggle-option">
                 <input type="radio" name="irrigation"
                        value="false" checked />
-                <span class="toggle-btn">No (rain-fed)</span>
+                <span class="toggle-btn"
+                      data-i18n="irrigation_no">No (rain-fed)</span>
               </label>
             </div>
           </div>
         </div>
 
+        <!-- Submit button -->
         <button type="submit" class="btn-predict" id="submitBtn">
-          <span id="btnText">🤖 Get AI Prediction</span>
+          <span id="btnText"
+                data-i18n="btn_predict">🤖 Get AI Prediction</span>
           <span id="btnSpinner" class="spinner hidden"></span>
         </button>
 
       </form>
     </section>
 
-    <!-- RESULTS (hidden until prediction) -->
+    <!-- RESULTS -->
     <section id="resultsSection" class="hidden">
 
       <div class="card results-card">
         <h2 class="card-title">
-          <span>📊</span> Prediction Results
+          <span>📊</span>
+          <span data-i18n="result_title">Prediction Results</span>
           <span id="resultCrop" class="crop-badge"></span>
         </h2>
         <div class="yield-banner">
           <div class="yield-main">
             <span class="yield-number" id="yieldTons">--</span>
-            <span class="yield-unit">tons predicted</span>
+            <span class="yield-unit"
+                  data-i18n="unit_tons">tons predicted</span>
           </div>
           <div class="yield-farm" id="yieldFarm"></div>
         </div>
         <div class="income-grid">
           <div class="income-box low">
-            <span class="income-label">Low Estimate</span>
+            <span class="income-label"
+                  data-i18n="income_low">Low Estimate</span>
             <span class="income-value" id="incomeLow">--</span>
           </div>
           <div class="income-box mid">
-            <span class="income-label">Mid Estimate</span>
+            <span class="income-label"
+                  data-i18n="income_mid">Mid Estimate</span>
             <span class="income-value" id="incomeMid">--</span>
           </div>
           <div class="income-box high">
-            <span class="income-label">High Estimate</span>
+            <span class="income-label"
+                  data-i18n="income_high">High Estimate</span>
             <span class="income-value" id="incomeHigh">--</span>
           </div>
         </div>
       </div>
 
       <div class="card" id="riskCard">
-        <h2 class="card-title"><span>⚠️</span> Risk Flags</h2>
+        <h2 class="card-title">
+          <span>⚠️</span>
+          <span data-i18n="risk_title">Risk Flags</span>
+        </h2>
         <div id="riskContent"></div>
       </div>
 
       <div class="card whatif-card">
-        <h2 class="card-title"><span>💡</span> What If You Upgraded?</h2>
+        <h2 class="card-title">
+          <span>💡</span>
+          <span data-i18n="whatif_title">What If You Upgraded?</span>
+        </h2>
         <div class="whatif-body">
           <div class="whatif-compare">
             <div class="whatif-col current">
-              <span class="whatif-label">Current Yield</span>
+              <span class="whatif-label"
+                    data-i18n="whatif_current">Current Yield</span>
               <span class="whatif-value" id="whatifCurrent">--</span>
             </div>
             <div class="whatif-arrow">→</div>
             <div class="whatif-col improved">
-              <span class="whatif-label">With Full Inputs</span>
+              <span class="whatif-label"
+                    data-i18n="whatif_best">With Full Inputs</span>
               <span class="whatif-value" id="whatifBest">--</span>
             </div>
           </div>
           <div class="whatif-uplift">
             <span id="whatifUplift"></span>
           </div>
-          <p class="whatif-desc">
+          <p class="whatif-desc"
+             data-i18n="whatif_desc">
             Improved seeds + irrigation + 100 kg/ha fertilizer
           </p>
         </div>
@@ -282,39 +349,46 @@
 
       <div class="card">
         <h2 class="card-title">
-          <span>🌿</span> Personalised Farming Advice
+          <span>🌿</span>
+          <span data-i18n="advice_title">Personalised Farming Advice</span>
         </h2>
         <div class="advice-grid" id="adviceGrid"></div>
       </div>
 
       <div class="card">
         <h2 class="card-title">
-          <span>📅</span> This Month's Actions
+          <span>📅</span>
+          <span data-i18n="calendar_title">This Month's Actions</span>
         </h2>
         <div id="calendarContent"></div>
       </div>
 
     </section>
 
-    <!-- ERROR SECTION -->
+    <!-- ERROR -->
     <div id="errorSection" class="card error-card hidden">
-      <h3>Something went wrong</h3>
-      <p id="errorMessage"></p>
-      <p>If the AI server is warming up, wait 30 seconds and try again.</p>
+      <h3>⚠️ <span id="errorMessage"></span></h3>
+      <p data-i18n="err_server">
+        If the AI server is warming up, wait 30 seconds and try again.
+      </p>
     </div>
 
   </main>
 
   <!-- FOOTER -->
   <footer class="footer">
-    <p>Built by <strong>Daniel Oyanogbezina</strong> &mdash;
-       AgriTech AI Platform &mdash; Day 8 of 365</p>
-    <p class="footer-sub">
-      Empowering Nigerian farmers with AI &mdash;
-      MSc Agroforestry, FUNAAB
+    <p>
+      <span data-i18n="footer_built">Built by</span>
+      <strong> Daniel Oyanogbezina</strong> —
+      AgriTech AI Platform — Day 9 of 365
+    </p>
+    <p class="footer-sub" data-i18n="footer_mission">
+      Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
     </p>
   </footer>
 
+  <!-- Scripts: translations MUST load before app.js -->
+  <script src="js/translations.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -467,3 +467,71 @@ input.invalid { border-color: var(--red); }
 .hidden { display: none !important; }
 
 form { display: flex; flex-direction: column; gap: 1rem; }
+
+/* ── Language switcher ─────────────────────────────────── */
+.lang-switcher {
+  display: flex;
+  gap: .3rem;
+  align-items: center;
+}
+
+.lang-btn {
+  background: rgba(255,255,255,.15);
+  color: white;
+  border: 1.5px solid rgba(255,255,255,.3);
+  border-radius: 6px;
+  padding: .25rem .55rem;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s ease;
+  letter-spacing: .5px;
+}
+
+.lang-btn:hover {
+  background: rgba(255,255,255,.25);
+  border-color: rgba(255,255,255,.6);
+}
+
+.lang-btn.lang-active {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: white;
+}
+
+/* Make header wrap nicely on small screens */
+@media (max-width: 480px) {
+  .header-inner {
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+  .lang-switcher { order: 3; width: 100%; justify-content: center; }
+  .status-badge  { order: 2; }
+}
+/* ── Language switcher ─────────────────────────────────── */
+.lang-switcher {
+  display: flex;
+  gap: .3rem;
+  align-items: center;
+}
+.lang-btn {
+  background: rgba(255,255,255,.15);
+  color: white;
+  border: 1.5px solid rgba(255,255,255,.3);
+  border-radius: 6px;
+  padding: .25rem .55rem;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s ease;
+  letter-spacing: .5px;
+}
+.lang-btn:hover {
+  background: rgba(255,255,255,.25);
+  border-color: rgba(255,255,255,.6);
+}
+.lang-btn.lang-active {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: white;
+}
