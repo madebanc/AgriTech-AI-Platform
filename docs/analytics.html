@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriTech AI — Analytics Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Chart.js from CDN — no install needed -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .dash-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .metric-box {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .metric-number {
+      display: block;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--green-dark);
+      line-height: 1.1;
+    }
+    .metric-label {
+      font-size: .8rem;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-top: .3rem;
+    }
+    .chart-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.25rem;
+    }
+    .chart-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--green-dark);
+      margin-bottom: 1rem;
+    }
+    .chart-wrap { position: relative; height: 260px; }
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+    @media (max-width: 640px) { .charts-row { grid-template-columns: 1fr; } }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      color: var(--green-dark);
+      font-weight: 600;
+      text-decoration: none;
+      margin-bottom: 1rem;
+      font-size: .9rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-light);
+    }
+    .empty-state h3 { color: var(--green-dark); margin-bottom: .5rem; }
+    .loading-overlay {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-mid);
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">📊</span>
+        <div>
+          <h1 class="logo-title">AgriTech AI</h1>
+          <p class="logo-sub">Analytics Dashboard</p>
+        </div>
+      </div>
+      <div class="status-badge" id="statusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Loading...</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <a href="index.html" class="back-link">← Back to Farmer Tool</a>
+
+    <!-- Loading state -->
+    <div id="loadingState" class="loading-overlay">
+      ⏳ Loading analytics data...
+    </div>
+
+    <!-- Empty state (hidden until needed) -->
+    <div id="emptyState" class="chart-card hidden">
+      <div class="empty-state">
+        <h3>📭 No Predictions Yet</h3>
+        <p>Make some predictions on the main app to see analytics here.</p>
+        <br>
+        <a href="index.html" class="back-link">→ Go make your first prediction</a>
+      </div>
+    </div>
+
+    <!-- Dashboard (hidden until data loads) -->
+    <div id="dashboardContent" class="hidden">
+
+      <!-- Key metrics row -->
+      <div class="dash-grid" id="metricsGrid"></div>
+
+      <!-- Charts row 1 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">🌾 Predictions by Crop</div>
+          <div class="chart-wrap">
+            <canvas id="cropChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">🗺️ Top States by Usage</div>
+          <div class="chart-wrap">
+            <canvas id="stateChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts row 2 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">📈 Predictions Over Time (Last 14 Days)</div>
+          <div class="chart-wrap">
+            <canvas id="timeChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">🌱 Average Yield by Crop (tons)</div>
+          <div class="chart-wrap">
+            <canvas id="yieldChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Risk flags chart (full width) -->
+      <div class="chart-card">
+        <div class="chart-title">⚠️ Risk Flag Distribution</div>
+        <div class="chart-wrap" style="height:200px;">
+          <canvas id="riskChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>
+      Built by <strong>Daniel Oyanogbezina</strong> —
+      AgriTech AI Platform — Day 10 of 365
+    </p>
+    <p class="footer-sub">
+      Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
+    </p>
+  </footer>
+
+  <script src="js/analytics.js"></script>
+</body>
+</html>
