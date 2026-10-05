@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriTech AI — Crop Disease Encyclopedia</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ── Disease page styles ─────────────────────────── */
+    .page-hero {
+      background: linear-gradient(135deg, #7b2d00, #c0392b);
+      color: white;
+      padding: 2rem 1.5rem;
+      text-align: center;
+    }
+    .page-hero h2 { font-size: clamp(1.4rem,4vw,2rem); margin-bottom:.5rem; }
+    .page-hero p  { opacity:.88; max-width:600px; margin:0 auto; font-size:.95rem; }
+
+    /* Crop selector tabs */
+    .crop-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+    .crop-tab {
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 25px;
+      padding: .4rem 1.1rem;
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-mid);
+      transition: all .2s;
+    }
+    .crop-tab:hover { border-color: var(--green-mid); color: var(--green-dark); }
+    .crop-tab.active {
+      background: var(--green-dark);
+      border-color: var(--green-dark);
+      color: white;
+    }
+
+    /* Disease cards */
+    .disease-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .disease-card {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .disease-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 1.25rem 1.5rem 1rem;
+      cursor: pointer;
+      gap: 1rem;
+    }
+    .disease-header:hover { background: #fafafa; }
+
+    .disease-name { font-size: 1.05rem; font-weight: 700; color: var(--text-dark); }
+    .disease-pathogen { font-size: .8rem; color: var(--text-light); margin-top:.15rem; }
+
+    .severity-badge {
+      display: inline-block;
+      padding: .2rem .7rem;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: white;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .disease-body {
+      display: none;
+      padding: 0 1.5rem 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .disease-body.open { display: block; }
+
+    .disease-body h4 {
+      font-size: .85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--green-dark);
+      margin: 1rem 0 .5rem;
+    }
+
+    .disease-body ul {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+    .disease-body li {
+      font-size: .875rem;
+      color: var(--text-mid);
+      margin: .3rem 0;
+      line-height: 1.5;
+    }
+
+    .yield-loss-banner {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: var(--radius-sm);
+      padding: .6rem 1rem;
+      margin-top: 1rem;
+      font-size: .875rem;
+    }
+    .yield-loss-banner strong { color: #856404; }
+
+    .local-names {
+      background: var(--green-light);
+      border: 1px solid var(--green-border);
+      border-radius: var(--radius-sm);
+      padding: .6rem 1rem;
+      margin-top: .75rem;
+      font-size: .8rem;
+      color: var(--green-dark);
+    }
+    .local-names span { margin-right: 1.2rem; }
+    .local-names strong { font-weight: 700; }
+
+    .chevron {
+      font-size: 1rem;
+      transition: transform .2s;
+      color: var(--text-light);
+      flex-shrink: 0;
+    }
+    .chevron.open { transform: rotate(180deg); }
+
+    /* Summary row */
+    .summary-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      margin-bottom: 1.5rem;
+    }
+    .summary-pill {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: .35rem .9rem;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--text-mid);
+      box-shadow: var(--shadow);
+    }
+    .summary-pill span {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--green-dark);
+      margin-right: .3rem;
+    }
+
+    .empty-msg {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-light);
+      font-size: 1rem;
+    }
+
+    /* Nav links */
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .nav-link {
+      color: var(--green-dark);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: .9rem;
+    }
+    .nav-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🔬</span>
+        <div>
+          <h1 class="logo-title">AgriTech AI</h1>
+          <p class="logo-sub">Crop Disease Encyclopedia</p>
+        </div>
+      </div>
+      <div class="status-badge" id="statusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Loading...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE HERO -->
+  <section class="page-hero">
+    <h2>🌿 Know What's Attacking Your Crops</h2>
+    <p>
+      Select your crop to see every disease — symptoms,
+      treatment steps, prevention, and local names in
+      Yoruba, Hausa, and Igbo.
+    </p>
+  </section>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- Nav -->
+    <div class="nav-links">
+      <a href="index.html"      class="nav-link">← Yield Predictor</a>
+      <a href="analytics.html"  class="nav-link">📊 Analytics</a>
+    </div>
+
+    <!-- Summary pills -->
+    <div class="summary-row" id="summaryRow">
+      <div class="summary-pill">⏳ Loading...</div>
+    </div>
+
+    <!-- Crop selector tabs -->
+    <div class="crop-tabs" id="cropTabs"></div>
+
+    <!-- Disease list -->
+    <div id="diseaseGrid" class="disease-grid">
+      <div class="empty-msg">Select a crop above to see its diseases.</div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>
+      Built by <strong>Daniel Oyanogbezina</strong> —
+      AgriTech AI Platform — Day 11 of 365
+    </p>
+    <p class="footer-sub">
+      Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
+    </p>
+    <p style="margin-top:.75rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+      <a href="index.html"
+         style="color:rgba(255,255,255,.8); font-weight:600;
+                text-decoration:none; font-size:.875rem;">
+        🌾 Yield Predictor
+      </a>
+      <a href="analytics.html"
+         style="color:rgba(255,255,255,.8); font-weight:600;
+                text-decoration:none; font-size:.875rem;">
+        📊 Analytics
+      </a>
+    </p>
+  </footer>
+
+  <script src="js/disease.js"></script>
+</body>
+</html>

@@ -1,8 +1,7 @@
 """
 app.py — AgriTech AI Platform
 Author : Daniel Oyanogbezina
-Purpose: Flask REST API — all endpoints
-         Day 10: includes prediction logging + analytics
+Day 11 : Added /api/diseases endpoints
 """
 
 import sys
@@ -11,13 +10,12 @@ import urllib.request
 import json as json_lib
 import datetime
 
-# Make sure Python finds advisory.py and predictor.py
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from flask      import Flask, request, jsonify
 from flask_cors import CORS
 
-from advisory  import (
+from advisory import (
     SUPPORTED_CROPS,
     CROP_ADVICE,
     get_calendar,
@@ -25,57 +23,63 @@ from advisory  import (
     NIGERIAN_STATES,
     REGION_RAINFALL,
     get_state_list,
+    CROP_DISEASES,
+    SEVERITY_COLORS,
+    get_diseases,
+    get_all_diseases,
 )
-from predictor  import predict_and_advise, MODEL_LOADED
-from database   import log_prediction, get_analytics
+from predictor import predict_and_advise, MODEL_LOADED
+from database  import log_prediction, get_analytics
 
-# ── App setup ──────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 
-# ── Helpers ────────────────────────────────────────────────
+
 def error_response(message: str, code: int = 400):
     return jsonify({"success": False, "error": message}), code
+
 
 def ok_response(data: dict):
     return jsonify({"success": True, **data})
 
 
-# ── ENDPOINT 1 — Home ──────────────────────────────────────
+# ── 1: Home ────────────────────────────────────────────────
 @app.route("/", methods=["GET"])
 def home():
     return ok_response({
         "name":    "AgriTech AI Platform API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "author":  "Daniel Oyanogbezina",
         "mission": "AI-powered farming advice for Nigerian farmers",
         "endpoints": {
-            "GET  /":                      "API information",
-            "GET  /health":                "Health check",
-            "GET  /api/crops":             "List supported crops",
-            "POST /api/predict":           "Predict yield + get advice",
-            "GET  /api/calendar/<crop>":   "Monthly crop calendar",
-            "GET  /api/advice/<crop>":     "Full advice for a crop",
-            "GET  /api/weather/<state>":   "Live rainfall for a state",
-            "GET  /api/states":            "List Nigerian states",
-            "GET  /api/analytics":         "Dashboard analytics data",
+            "GET  /":                       "API information",
+            "GET  /health":                 "Health check",
+            "GET  /api/crops":              "List supported crops",
+            "POST /api/predict":            "Predict yield + advice",
+            "GET  /api/calendar/<crop>":    "Monthly crop calendar",
+            "GET  /api/advice/<crop>":      "Full advice for a crop",
+            "GET  /api/weather/<state>":    "Rainfall for a state",
+            "GET  /api/states":             "List Nigerian states",
+            "GET  /api/analytics":          "Dashboard analytics",
+            "GET  /api/diseases/<crop>":    "Diseases for a crop",
+            "GET  /api/diseases":           "All disease counts",
         },
         "supported_crops": SUPPORTED_CROPS,
     })
 
 
-# ── ENDPOINT 2 — Health ────────────────────────────────────
+# ── 2: Health ──────────────────────────────────────────────
 @app.route("/health", methods=["GET"])
 def health():
     return ok_response({
         "status":       "online",
         "model_loaded": MODEL_LOADED,
         "timestamp":    datetime.datetime.now().isoformat(),
-        "server":       "AgriTech AI Platform v1.0",
+        "server":       "AgriTech AI Platform v1.1",
     })
 
 
-# ── ENDPOINT 3 — List crops ────────────────────────────────
+# ── 3: List crops ──────────────────────────────────────────
 @app.route("/api/crops", methods=["GET"])
 def list_crops():
     crops_info = []
@@ -86,18 +90,16 @@ def list_crops():
             "season":       info["season"],
             "harvest_time": info["harvest"],
             "market_tip":   info["market_tip"],
+            "disease_count": len(CROP_DISEASES.get(crop, [])),
             "price_range_ngn_per_ton": {
                 "low":  info["price_range"][0],
                 "high": info["price_range"][1],
             },
         })
-    return ok_response({
-        "count": len(crops_info),
-        "crops": crops_info,
-    })
+    return ok_response({"count": len(crops_info), "crops": crops_info})
 
 
-# ── ENDPOINT 4 — Predict (main endpoint) ───────────────────
+# ── 4: Predict (main endpoint) ─────────────────────────────
 @app.route("/api/predict", methods=["POST"])
 def predict():
     body = request.get_json(silent=True)
@@ -114,9 +116,7 @@ def predict():
     ]
     missing = [f for f in required if f not in body]
     if missing:
-        return error_response(
-            f"Missing required fields: {missing}"
-        )
+        return error_response(f"Missing required fields: {missing}")
 
     try:
         crop           = str(body["crop"])
@@ -131,46 +131,33 @@ def predict():
         return error_response(f"Invalid field type: {e}")
 
     result = predict_and_advise(
-        crop=crop,
-        rainfall_mm=rainfall_mm,
-        soil_ph=soil_ph,
-        fertilizer_kg=fertilizer_kg,
-        improved_seeds=improved_seeds,
-        irrigation=irrigation,
-        farm_size_ha=farm_size_ha,
+        crop=crop, rainfall_mm=rainfall_mm, soil_ph=soil_ph,
+        fertilizer_kg=fertilizer_kg, improved_seeds=improved_seeds,
+        irrigation=irrigation, farm_size_ha=farm_size_ha,
     )
 
     if "error" in result:
         return error_response(result["error"])
 
-    # Log prediction to database (non-blocking)
     try:
-        data_for_log = {
-            "crop":           crop,
-            "state":          state,
-            "farm_size_ha":   farm_size_ha,
-            "rainfall_mm":    rainfall_mm,
-            "soil_ph":        soil_ph,
-            "fertilizer_kg":  fertilizer_kg,
-            "improved_seeds": improved_seeds,
-            "irrigation":     irrigation,
-        }
-        log_prediction(data_for_log, result)
-    except Exception as log_err:
-        print(f"[app] Logging error (non-critical): {log_err}")
+        log_prediction({
+            "crop": crop, "state": state,
+            "farm_size_ha": farm_size_ha, "rainfall_mm": rainfall_mm,
+            "soil_ph": soil_ph, "fertilizer_kg": fertilizer_kg,
+            "improved_seeds": improved_seeds, "irrigation": irrigation,
+        }, result)
+    except Exception as e:
+        print(f"[app] Logging error (non-critical): {e}")
 
     return ok_response({"result": result})
 
 
-# ── ENDPOINT 5 — Crop calendar ─────────────────────────────
+# ── 5: Crop calendar ───────────────────────────────────────
 @app.route("/api/calendar/<crop>", methods=["GET"])
 def crop_calendar(crop):
     crop = crop.strip().title()
     if crop not in SUPPORTED_CROPS:
-        return error_response(
-            f"Crop '{crop}' not supported. "
-            f"Supported: {SUPPORTED_CROPS}"
-        )
+        return error_response(f"Crop '{crop}' not supported.")
     try:
         month = int(request.args.get(
             "month", datetime.datetime.now().month))
@@ -178,23 +165,18 @@ def crop_calendar(crop):
             return error_response("month must be between 1 and 12")
     except ValueError:
         return error_response("month must be an integer (1-12)")
-
-    calendar = get_calendar(crop, month)
-    return ok_response({"calendar": calendar})
+    return ok_response({"calendar": get_calendar(crop, month)})
 
 
-# ── ENDPOINT 6 — Crop advice ───────────────────────────────
+# ── 6: Crop advice ─────────────────────────────────────────
 @app.route("/api/advice/<crop>", methods=["GET"])
 def crop_advice(crop):
     crop = crop.strip().title()
     if crop not in SUPPORTED_CROPS:
-        return error_response(
-            f"Crop '{crop}' not supported. "
-            f"Supported: {SUPPORTED_CROPS}"
-        )
+        return error_response(f"Crop '{crop}' not supported.")
     info = CROP_ADVICE[crop]
     return ok_response({
-        "crop":   crop,
+        "crop": crop,
         "advice": {
             "season":        info["season"],
             "soil_ph":       info["soil_ph"],
@@ -212,7 +194,7 @@ def crop_advice(crop):
     })
 
 
-# ── ENDPOINT 7 — State weather ─────────────────────────────
+# ── 7: State weather ───────────────────────────────────────
 @app.route("/api/weather/<state>", methods=["GET"])
 def get_state_weather(state):
     matched_state = None
@@ -224,71 +206,53 @@ def get_state_weather(state):
 
     if not matched_state:
         return error_response(
-            f"State '{state}' not found. "
-            f"Use /api/states for the full list."
+            f"State '{state}' not found. Use /api/states for the list."
         )
 
-    coords  = NIGERIAN_STATES[matched_state]
-    lat     = coords["lat"]
-    lon     = coords["lon"]
-    region  = coords["region"]
+    coords = NIGERIAN_STATES[matched_state]
+    lat, lon, region = coords["lat"], coords["lon"], coords["region"]
 
     try:
-        weather_url = (
+        url = (
             f"https://api.open-meteo.com/v1/forecast"
             f"?latitude={lat}&longitude={lon}"
             f"&daily=precipitation_sum"
-            f"&timezone=Africa%2FLagos"
-            f"&past_days=30"
-            f"&forecast_days=1"
+            f"&timezone=Africa%2FLagos&past_days=30&forecast_days=1"
         )
-        req = urllib.request.Request(
-            weather_url,
-            headers={"User-Agent": "AgriTechAI/1.0"}
-        )
+        req = urllib.request.Request(url,
+              headers={"User-Agent": "AgriTechAI/1.0"})
         with urllib.request.urlopen(req, timeout=8) as resp:
-            raw   = resp.read().decode()
-            wdata = json_lib.loads(raw)
+            wdata = json_lib.loads(resp.read().decode())
 
-        daily_rain      = wdata.get("daily", {}).get("precipitation_sum", [])
-        rain_30_days    = sum(r for r in daily_rain if r is not None)
-        annual_estimate = round(rain_30_days * 12)
-        regional_typical = REGION_RAINFALL[region]
-        blended = round((annual_estimate * 0.4) + (regional_typical * 0.6))
+        daily_rain = wdata.get("daily", {}).get("precipitation_sum", [])
+        rain_30    = sum(r for r in daily_rain if r is not None)
+        annual_est = round(rain_30 * 12)
+        regional   = REGION_RAINFALL[region]
+        blended    = round((annual_est * 0.4) + (regional * 0.6))
 
         return ok_response({
-            "state":   matched_state,
-            "region":  region,
+            "state": matched_state, "region": region,
             "coordinates": {"lat": lat, "lon": lon},
             "weather": {
-                "rainfall_30_days_mm":   round(rain_30_days, 1),
-                "annual_estimate_mm":    annual_estimate,
+                "rainfall_30_days_mm":   round(rain_30, 1),
+                "annual_estimate_mm":    annual_est,
                 "recommended_input_mm":  blended,
                 "source": "Open-Meteo + regional data",
-            },
-            "farming_context": {
-                "typical_annual_mm": regional_typical,
-                "note": "Use recommended_input_mm as your rainfall value.",
             },
         })
 
     except Exception:
-        regional_typical = REGION_RAINFALL[region]
+        regional = REGION_RAINFALL[region]
         return ok_response({
-            "state":   matched_state,
-            "region":  region,
+            "state": matched_state, "region": region,
             "weather": {
-                "recommended_input_mm": regional_typical,
+                "recommended_input_mm": regional,
                 "source": "regional historical average",
-            },
-            "farming_context": {
-                "typical_annual_mm": regional_typical,
-                "note": "Live weather unavailable. Using historical average.",
             },
         })
 
 
-# ── ENDPOINT 8 — List states ───────────────────────────────
+# ── 8: List states ─────────────────────────────────────────
 @app.route("/api/states", methods=["GET"])
 def list_states():
     return ok_response({
@@ -297,25 +261,49 @@ def list_states():
     })
 
 
-# ── ENDPOINT 9 — Analytics ─────────────────────────────────
+# ── 9: Analytics ───────────────────────────────────────────
 @app.route("/api/analytics", methods=["GET"])
 def analytics():
-    data = get_analytics()
-    return ok_response({"analytics": data})
+    return ok_response({"analytics": get_analytics()})
+
+
+# ── 10: Diseases for one crop ──────────────────────────────
+@app.route("/api/diseases/<crop>", methods=["GET"])
+def crop_diseases(crop):
+    crop = crop.strip().title()
+    if crop not in SUPPORTED_CROPS:
+        return error_response(
+            f"Crop '{crop}' not supported. "
+            f"Supported: {SUPPORTED_CROPS}"
+        )
+    diseases = get_diseases(crop)
+    return ok_response({
+        "crop":            crop,
+        "disease_count":   len(diseases),
+        "diseases":        diseases,
+        "severity_colors": SEVERITY_COLORS,
+    })
+
+
+# ── 11: All disease counts ─────────────────────────────────
+@app.route("/api/diseases", methods=["GET"])
+def all_diseases():
+    return ok_response({
+        "summary":         get_all_diseases(),
+        "total_diseases":  sum(get_all_diseases().values()),
+        "severity_colors": SEVERITY_COLORS,
+    })
 
 
 # ── Error handlers ─────────────────────────────────────────
 @app.errorhandler(404)
 def not_found(e):
     return error_response(
-        "Endpoint not found. Visit / for all endpoints.", 404
-    )
+        "Endpoint not found. Visit / for all endpoints.", 404)
 
 @app.errorhandler(405)
 def method_not_allowed(e):
-    return error_response(
-        "Method not allowed. Check GET vs POST.", 405
-    )
+    return error_response("Method not allowed.", 405)
 
 @app.errorhandler(500)
 def server_error(e):
@@ -325,14 +313,15 @@ def server_error(e):
 # ── Run ────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("  AgriTech AI Platform — Farmer Advisory API")
+    print("  AgriTech AI Platform — Farmer Advisory API v1.1")
     print("  Author: Daniel Oyanogbezina")
     print("=" * 60)
     print(f"  Model loaded    : {MODEL_LOADED}")
     print(f"  Supported crops : {SUPPORTED_CROPS}")
-    print(f"  Nigerian states : {len(NIGERIAN_STATES)} states")
+    print(f"  Nigerian states : {len(NIGERIAN_STATES)}")
+    print(f"  Diseases loaded : {sum(get_all_diseases().values())}")
     print()
-    print("  Endpoints:")
+    print("  Endpoints (11 total):")
     print("  GET  http://127.0.0.1:5001/")
     print("  GET  http://127.0.0.1:5001/health")
     print("  GET  http://127.0.0.1:5001/api/crops")
@@ -342,6 +331,8 @@ if __name__ == "__main__":
     print("  GET  http://127.0.0.1:5001/api/weather/<state>")
     print("  GET  http://127.0.0.1:5001/api/states")
     print("  GET  http://127.0.0.1:5001/api/analytics")
+    print("  GET  http://127.0.0.1:5001/api/diseases/<crop>  <- NEW")
+    print("  GET  http://127.0.0.1:5001/api/diseases         <- NEW")
     print()
     print("  Press CTRL+C to stop")
     print("=" * 60 + "\n")

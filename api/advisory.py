@@ -288,3 +288,510 @@ REGION_RAINFALL = {
 def get_state_list():
     """Returns sorted list of all Nigerian states"""
     return sorted(NIGERIAN_STATES.keys())
+
+# ─────────────────────────────────────────────────────────────────────
+# CROP DISEASE ENCYCLOPEDIA
+# Added Day 11 — Daniel Oyanogbezina
+# 14 diseases across 6 crops with symptoms, treatment, prevention
+# ─────────────────────────────────────────────────────────────────────
+
+CROP_DISEASES = {
+    "Cassava": [
+        {
+            "name":     "Cassava Mosaic Disease (CMD)",
+            "pathogen": "Begomovirus — spread by whiteflies",
+            "severity": "critical",
+            "symptoms": [
+                "Yellow-green mosaic patterns on leaves",
+                "Distorted and twisted young leaves",
+                "Stunted plant growth",
+                "Reduced root size and quality"
+            ],
+            "treatment": [
+                "Remove and destroy all infected plants immediately",
+                "Do not use cuttings from infected plants",
+                "Plant resistant varieties: TME 419, IITA TMS",
+                "Control whitefly vectors with neem-based insecticide",
+                "Maintain field hygiene — clear all crop debris"
+            ],
+            "prevention": [
+                "Always use certified disease-free planting material",
+                "Plant resistant varieties from IITA or NASC",
+                "Monitor fields weekly for early detection",
+                "Control whitefly population proactively"
+            ],
+            "yield_loss": "20 - 95%",
+            "local_names": {
+                "yoruba": "Arun Kasava",
+                "hausa":  "Cuta rogo",
+                "igbo":   "Oria ji oyibo"
+            }
+        },
+        {
+            "name":     "Cassava Brown Streak Disease (CBSD)",
+            "pathogen": "Ipomovirus — spread by whiteflies",
+            "severity": "critical",
+            "symptoms": [
+                "Yellow blotches along leaf veins",
+                "Brown streaks on green stems",
+                "Dry brown rot inside storage roots",
+                "Roots look healthy outside but rotten inside"
+            ],
+            "treatment": [
+                "Remove and burn all infected plants completely",
+                "Never reuse planting material from infected farm",
+                "Plant CBSD-resistant varieties from IITA",
+                "Contact nearest agricultural extension office"
+            ],
+            "prevention": [
+                "Use only certified clean planting material",
+                "Avoid moving planting material from infected areas",
+                "Plant tolerant varieties where disease is present",
+                "Practice strict field sanitation"
+            ],
+            "yield_loss": "70 - 100%",
+            "local_names": {
+                "yoruba": "Arun gbongbo kasava",
+                "hausa":  "Cutar tushen rogo",
+                "igbo":   "Orịa cassava"
+            }
+        },
+        {
+            "name":     "Cassava Anthracnose Disease (CAD)",
+            "pathogen": "Colletotrichum gloeosporioides (fungus)",
+            "severity": "medium",
+            "symptoms": [
+                "Die-back of shoot tips and young stems",
+                "Dark brown lesions on stems",
+                "Cankers that girdle the stem",
+                "Leaves wilt and fall prematurely"
+            ],
+            "treatment": [
+                "Prune and destroy affected plant parts",
+                "Apply copper-based fungicide to cut wounds",
+                "Improve air circulation by wider spacing",
+                "Avoid overhead irrigation"
+            ],
+            "prevention": [
+                "Use disease-free planting material",
+                "Avoid wounding plants during weeding",
+                "Apply preventive copper fungicide spray",
+                "Ensure good field drainage"
+            ],
+            "yield_loss": "10 - 30%",
+            "local_names": {
+                "yoruba": "Arun igi kasava",
+                "hausa":  "Cutar bawon rogo",
+                "igbo":   "Orịa ụgbọ cassava"
+            }
+        },
+        {
+            "name":     "Cassava Bacterial Blight (CBB)",
+            "pathogen": "Xanthomonas axonopodis (bacteria)",
+            "severity": "high",
+            "symptoms": [
+                "Angular water-soaked spots on leaves",
+                "Wilting of leaves and shoot tips",
+                "Gummy bacterial exudate on stems",
+                "Systemic wilting in severe cases"
+            ],
+            "treatment": [
+                "Remove infected plant material immediately",
+                "Apply copper-based bactericide spray",
+                "Avoid working in field when plants are wet",
+                "Disinfect farm tools between plants"
+            ],
+            "prevention": [
+                "Plant resistant varieties",
+                "Use pathogen-free planting material",
+                "Practice crop rotation",
+                "Avoid water stress during dry periods"
+            ],
+            "yield_loss": "15 - 50%",
+            "local_names": {
+                "yoruba": "Arun kokoro kasava",
+                "hausa":  "Cuta ta kwayoyin cuta rogo",
+                "igbo":   "Orịa bacteria cassava"
+            }
+        },
+    ],
+
+    "Maize": [
+        {
+            "name":     "Fall Armyworm (FAW)",
+            "pathogen": "Spodoptera frugiperda (insect pest)",
+            "severity": "critical",
+            "symptoms": [
+                "Ragged holes in whorl leaves",
+                "Sawdust-like frass (droppings) in whorl",
+                "Larvae visible inside whorl at night",
+                "Severe defoliation of young plants"
+            ],
+            "treatment": [
+                "Apply emamectin benzoate or spinetoram insecticide",
+                "Spray early morning or late evening",
+                "Use neem-based biopesticide for mild infestations",
+                "Remove and destroy heavily infested plants",
+                "Apply sand mixed with ash into the whorl"
+            ],
+            "prevention": [
+                "Monitor fields twice weekly from plant emergence",
+                "Plant early to avoid peak pest season",
+                "Use pheromone traps to monitor adult moths",
+                "Encourage natural predators: birds and wasps"
+            ],
+            "yield_loss": "20 - 100%",
+            "local_names": {
+                "yoruba": "Kokoro aginju agbado",
+                "hausa":  "Tsutsatsin masara",
+                "igbo":   "Ochịchọ ọka"
+            }
+        },
+        {
+            "name":     "Maize Streak Virus (MSV)",
+            "pathogen": "Mastrevirus — spread by leafhoppers",
+            "severity": "high",
+            "symptoms": [
+                "Pale yellow streaks running along leaf veins",
+                "Streaks appear on young leaves first",
+                "Severely stunted plant growth",
+                "Ear formation greatly reduced"
+            ],
+            "treatment": [
+                "No cure — remove infected plants early",
+                "Control leafhopper vectors with insecticide",
+                "Replant with resistant varieties immediately"
+            ],
+            "prevention": [
+                "Plant streak-resistant maize varieties",
+                "Early planting to avoid leafhopper peak season",
+                "Remove infected plants before virus spreads",
+                "Keep field surroundings clear of weeds"
+            ],
+            "yield_loss": "10 - 100%",
+            "local_names": {
+                "yoruba": "Arun ila agbado",
+                "hausa":  "Cutar layin masara",
+                "igbo":   "Orịa ọka"
+            }
+        },
+        {
+            "name":     "Maize Rust",
+            "pathogen": "Puccinia sorghi (fungus)",
+            "severity": "medium",
+            "symptoms": [
+                "Small reddish-brown pustules on leaves",
+                "Pustules appear on both leaf surfaces",
+                "Severe infection causes leaf yellowing",
+                "Premature leaf death in late stages"
+            ],
+            "treatment": [
+                "Apply propiconazole or mancozeb fungicide",
+                "Spray at first sign of infection",
+                "Repeat application after 14 days if needed"
+            ],
+            "prevention": [
+                "Plant rust-resistant maize varieties",
+                "Avoid excessive nitrogen fertilizer",
+                "Ensure adequate plant spacing for airflow",
+                "Destroy crop debris after harvest"
+            ],
+            "yield_loss": "10 - 40%",
+            "local_names": {
+                "yoruba": "Arun pupa agbado",
+                "hausa":  "Tsatsa masara",
+                "igbo":   "Orịa ọcha ọka"
+            }
+        },
+    ],
+
+    "Yam": [
+        {
+            "name":     "Yam Anthracnose",
+            "pathogen": "Colletotrichum gloeosporioides (fungus)",
+            "severity": "high",
+            "symptoms": [
+                "Irregular brown-black lesions on leaves",
+                "Die-back of stem tips",
+                "Dark sunken spots on tubers",
+                "Premature defoliation of plant"
+            ],
+            "treatment": [
+                "Apply mancozeb or copper oxychloride fungicide",
+                "Spray every 14 days during wet season",
+                "Remove and destroy infected plant material",
+                "Treat seed yams with fungicide before planting"
+            ],
+            "prevention": [
+                "Use disease-free seed yams only",
+                "Treat seed yams with wood ash before planting",
+                "Ensure good drainage in yam plots",
+                "Rotate crops — avoid replanting in same spot"
+            ],
+            "yield_loss": "20 - 80%",
+            "local_names": {
+                "yoruba": "Arun ijisu",
+                "hausa":  "Cutar doya",
+                "igbo":   "Orịa ji"
+            }
+        },
+        {
+            "name":     "Yam Mosaic Virus",
+            "pathogen": "Potyvirus — spread by aphids",
+            "severity": "medium",
+            "symptoms": [
+                "Yellow mosaic patterns on young leaves",
+                "Leaf distortion and curling",
+                "Reduced plant vigour",
+                "Smaller tubers at harvest"
+            ],
+            "treatment": [
+                "Remove and destroy infected plants",
+                "Control aphid vectors with insecticide",
+                "Do not propagate from infected tubers"
+            ],
+            "prevention": [
+                "Use certified virus-free seed yams",
+                "Control aphid populations early in season",
+                "Remove infected plants promptly",
+                "Avoid planting near infected fields"
+            ],
+            "yield_loss": "15 - 60%",
+            "local_names": {
+                "yoruba": "Arun aworan isu",
+                "hausa":  "Cutar mosaic doya",
+                "igbo":   "Orịa mosaic ji"
+            }
+        },
+        {
+            "name":     "Dry Rot (Yam Storage Rot)",
+            "pathogen": "Botryodiplodia theobromae (fungus)",
+            "severity": "high",
+            "symptoms": [
+                "Dark discolouration under tuber skin",
+                "Dry shrunken internal tissue",
+                "White fungal growth on stored yams",
+                "Rapid spread to healthy tubers in storage"
+            ],
+            "treatment": [
+                "Remove all rotting tubers from store immediately",
+                "Disinfect storage facility thoroughly",
+                "Apply wood ash to remaining healthy tubers",
+                "Improve ventilation in storage facility"
+            ],
+            "prevention": [
+                "Cure yams properly before storage (shade dry 1-2 weeks)",
+                "Never store damaged or bruised tubers",
+                "Treat storage facility with lime wash",
+                "Inspect stored yams weekly"
+            ],
+            "yield_loss": "20 - 70% post-harvest",
+            "local_names": {
+                "yoruba": "Ibaje ibi ipamo isu",
+                "hausa":  "Rubewar doya",
+                "igbo":   "Orịa ji n'onodu"
+            }
+        },
+    ],
+
+    "Rice": [
+        {
+            "name":     "Rice Blast",
+            "pathogen": "Magnaporthe oryzae (fungus)",
+            "severity": "critical",
+            "symptoms": [
+                "Diamond-shaped grey-brown spots on leaves",
+                "White to grey lesions with brown borders",
+                "Neck rot — panicle neck turns brown and breaks",
+                "Empty or half-filled grains at harvest"
+            ],
+            "treatment": [
+                "Apply tricyclazole or isoprothiolane fungicide",
+                "Spray at tillering and panicle initiation stages",
+                "Drain field and reduce nitrogen application",
+                "Repeat spray after 7-10 days if severe"
+            ],
+            "prevention": [
+                "Plant blast-resistant rice varieties",
+                "Avoid excessive nitrogen fertilizer",
+                "Maintain healthy plant population density",
+                "Use certified disease-free seeds only"
+            ],
+            "yield_loss": "10 - 100%",
+            "local_names": {
+                "yoruba": "Arun iresi",
+                "hausa":  "Cutar shinkafa",
+                "igbo":   "Orịa osịkapa"
+            }
+        },
+        {
+            "name":     "Bacterial Leaf Blight (BLB)",
+            "pathogen": "Xanthomonas oryzae pv. oryzae",
+            "severity": "high",
+            "symptoms": [
+                "Water-soaked to yellowish stripes on leaf edges",
+                "Leaf margin turns yellow then brown and dies",
+                "Milky bacterial ooze on infected tissue",
+                "Wilting of young plants in kresek phase"
+            ],
+            "treatment": [
+                "Apply copper-based bactericide spray",
+                "Drain the paddy field temporarily",
+                "Remove and destroy severely infected plants",
+                "Avoid excessive nitrogen during infection period"
+            ],
+            "prevention": [
+                "Use resistant rice varieties",
+                "Maintain proper irrigation — avoid water stress",
+                "Use balanced fertilizer — not excess nitrogen",
+                "Disinfect seeds before planting"
+            ],
+            "yield_loss": "20 - 50%",
+            "local_names": {
+                "yoruba": "Arun kokoro iresi",
+                "hausa":  "Cutar bala shinkafa",
+                "igbo":   "Orịa bacteria osịkapa"
+            }
+        },
+    ],
+
+    "Groundnut": [
+        {
+            "name":     "Groundnut Rosette Disease",
+            "pathogen": "Groundnut Rosette Virus — spread by aphids",
+            "severity": "critical",
+            "symptoms": [
+                "Stunted plants with small clustered leaves",
+                "Mosaic and mottling patterns on leaves",
+                "Chlorotic rosette — leaves turn pale yellow",
+                "No pod formation in severely infected plants"
+            ],
+            "treatment": [
+                "Remove and destroy infected plants immediately",
+                "Control aphid vectors urgently with insecticide",
+                "Apply imidacloprid for rapid aphid control",
+                "No effective chemical cure — prevention is critical"
+            ],
+            "prevention": [
+                "Plant rosette-resistant varieties: SAMNUT series",
+                "Plant early at start of rains to avoid aphid peak",
+                "Maintain high plant population — border rows sacrificed",
+                "Apply insecticide at emergence to protect young plants"
+            ],
+            "yield_loss": "50 - 100%",
+            "local_names": {
+                "yoruba": "Arun epa",
+                "hausa":  "Cutar gyada",
+                "igbo":   "Orịa ahịhịa"
+            }
+        },
+        {
+            "name":     "Early Leaf Spot",
+            "pathogen": "Cercospora arachidicola (fungus)",
+            "severity": "medium",
+            "symptoms": [
+                "Circular dark spots on upper leaf surface",
+                "Yellow halo surrounding the spots",
+                "Premature defoliation in severe cases",
+                "Spots appear 30-40 days after planting"
+            ],
+            "treatment": [
+                "Apply chlorothalonil or mancozeb fungicide",
+                "Spray every 14 days from 30 days after emergence",
+                "Remove and bury heavily infected leaves"
+            ],
+            "prevention": [
+                "Plant resistant groundnut varieties",
+                "Avoid overhead irrigation if possible",
+                "Ensure good air movement through proper spacing",
+                "Rotate crops — never groundnut after groundnut"
+            ],
+            "yield_loss": "10 - 50%",
+            "local_names": {
+                "yoruba": "Arun abawon epa",
+                "hausa":  "Cutar batsa gyada",
+                "igbo":   "Orịa akwụkwọ ahịhịa"
+            }
+        },
+    ],
+
+    "Cocoa": [
+        {
+            "name":     "Black Pod Disease",
+            "pathogen": "Phytophthora megakarya (fungus-like organism)",
+            "severity": "critical",
+            "symptoms": [
+                "Brown to black water-soaked spots on pods",
+                "Rapid spread covering entire pod within days",
+                "White mycelium visible on pod surface in humid conditions",
+                "Beans inside rot completely — total pod loss"
+            ],
+            "treatment": [
+                "Remove and destroy all infected pods immediately",
+                "Apply copper hydroxide or metalaxyl fungicide",
+                "Spray every 2-3 weeks during wet season",
+                "Clear vegetation beneath trees to reduce humidity"
+            ],
+            "prevention": [
+                "Prune trees regularly for good air circulation",
+                "Remove mistletoe and epiphytes from trees",
+                "Harvest ripe pods promptly — never leave on tree",
+                "Apply preventive copper fungicide before rainy season"
+            ],
+            "yield_loss": "30 - 90%",
+            "local_names": {
+                "yoruba": "Arun pod cocoa",
+                "hausa":  "Cutar bakar kwayar cocoa",
+                "igbo":   "Orịa oji ojii cocoa"
+            }
+        },
+        {
+            "name":     "Cocoa Swollen Shoot Virus (CSSV)",
+            "pathogen": "Badnavirus — spread by mealybugs",
+            "severity": "critical",
+            "symptoms": [
+                "Swelling and distortion of root and stem tips",
+                "Red vein banding on young leaves",
+                "Yellowing and premature leaf fall",
+                "Severe stunting and eventual tree death"
+            ],
+            "treatment": [
+                "No cure exists — infected trees must be cut down",
+                "Cut and destroy infected trees completely",
+                "Control mealybug vectors on remaining trees",
+                "Report outbreak to State Agricultural Department"
+            ],
+            "prevention": [
+                "Use certified disease-free planting material only",
+                "Control mealybug population proactively",
+                "Inspect new farms for CSSV before planting nearby",
+                "Maintain buffer zones around infected areas"
+            ],
+            "yield_loss": "25 - 50% per year until tree death",
+            "local_names": {
+                "yoruba": "Arun wiwu cocoa",
+                "hausa":  "Cutar kumburi cocoa",
+                "igbo":   "Orịa onụnụ cocoa"
+            }
+        },
+    ],
+}
+
+SEVERITY_COLORS = {
+    "critical": "#d94f3d",
+    "high":     "#e07b00",
+    "medium":   "#f4a900",
+    "low":      "#1a6b3c",
+}
+
+
+def get_diseases(crop: str) -> list:
+    """Returns disease list for a crop"""
+    crop = crop.strip().title()
+    return CROP_DISEASES.get(crop, [])
+
+
+def get_all_diseases() -> dict:
+    """Returns disease count per crop"""
+    return {crop: len(diseases)
+            for crop, diseases in CROP_DISEASES.items()}
