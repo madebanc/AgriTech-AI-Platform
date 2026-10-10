@@ -5,8 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AgriTech AI — Crop Disease Encyclopedia</title>
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- PWA support -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1a6b3c" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AgriTech AI" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+
   <style>
-    /* ── Disease page styles ─────────────────────────── */
     .page-hero {
       background: linear-gradient(135deg, #7b2d00, #c0392b);
       color: white;
@@ -16,7 +25,6 @@
     .page-hero h2 { font-size: clamp(1.4rem,4vw,2rem); margin-bottom:.5rem; }
     .page-hero p  { opacity:.88; max-width:600px; margin:0 auto; font-size:.95rem; }
 
-    /* Crop selector tabs */
     .crop-tabs {
       display: flex;
       flex-wrap: wrap;
@@ -41,7 +49,6 @@
       color: white;
     }
 
-    /* Disease cards */
     .disease-grid {
       display: flex;
       flex-direction: column;
@@ -63,10 +70,8 @@
       gap: 1rem;
     }
     .disease-header:hover { background: #fafafa; }
-
     .disease-name { font-size: 1.05rem; font-weight: 700; color: var(--text-dark); }
     .disease-pathogen { font-size: .8rem; color: var(--text-light); margin-top:.15rem; }
-
     .severity-badge {
       display: inline-block;
       padding: .2rem .7rem;
@@ -79,14 +84,12 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
-
     .disease-body {
       display: none;
       padding: 0 1.5rem 1.5rem;
       border-top: 1px solid var(--border);
     }
     .disease-body.open { display: block; }
-
     .disease-body h4 {
       font-size: .85rem;
       font-weight: 700;
@@ -95,18 +98,13 @@
       color: var(--green-dark);
       margin: 1rem 0 .5rem;
     }
-
-    .disease-body ul {
-      margin: 0;
-      padding-left: 1.2rem;
-    }
+    .disease-body ul { margin: 0; padding-left: 1.2rem; }
     .disease-body li {
       font-size: .875rem;
       color: var(--text-mid);
       margin: .3rem 0;
       line-height: 1.5;
     }
-
     .yield-loss-banner {
       background: #fff3cd;
       border: 1px solid #ffc107;
@@ -116,7 +114,6 @@
       font-size: .875rem;
     }
     .yield-loss-banner strong { color: #856404; }
-
     .local-names {
       background: var(--green-light);
       border: 1px solid var(--green-border);
@@ -127,8 +124,6 @@
       color: var(--green-dark);
     }
     .local-names span { margin-right: 1.2rem; }
-    .local-names strong { font-weight: 700; }
-
     .chevron {
       font-size: 1rem;
       transition: transform .2s;
@@ -136,8 +131,6 @@
       flex-shrink: 0;
     }
     .chevron.open { transform: rotate(180deg); }
-
-    /* Summary row */
     .summary-row {
       display: flex;
       flex-wrap: wrap;
@@ -160,15 +153,12 @@
       color: var(--green-dark);
       margin-right: .3rem;
     }
-
     .empty-msg {
       text-align: center;
       padding: 3rem 1rem;
       color: var(--text-light);
       font-size: 1rem;
     }
-
-    /* Nav links */
     .nav-links {
       display: flex;
       gap: 1rem;
@@ -205,7 +195,7 @@
 
   <!-- PAGE HERO -->
   <section class="page-hero">
-    <h2>🌿 Know What's Attacking Your Crops</h2>
+    <h2>🌿 Know What Is Attacking Your Crops</h2>
     <p>
       Select your crop to see every disease — symptoms,
       treatment steps, prevention, and local names in
@@ -216,21 +206,17 @@
   <!-- MAIN -->
   <main class="main">
 
-    <!-- Nav -->
     <div class="nav-links">
       <a href="index.html"      class="nav-link">← Yield Predictor</a>
       <a href="analytics.html"  class="nav-link">📊 Analytics</a>
     </div>
 
-    <!-- Summary pills -->
     <div class="summary-row" id="summaryRow">
       <div class="summary-pill">⏳ Loading...</div>
     </div>
 
-    <!-- Crop selector tabs -->
     <div class="crop-tabs" id="cropTabs"></div>
 
-    <!-- Disease list -->
     <div id="diseaseGrid" class="disease-grid">
       <div class="empty-msg">Select a crop above to see its diseases.</div>
     </div>
@@ -241,25 +227,43 @@
   <footer class="footer">
     <p>
       Built by <strong>Daniel Oyanogbezina</strong> —
-      AgriTech AI Platform — Day 11 of 365
+      AgriTech AI Platform — Day 12 of 365
     </p>
     <p class="footer-sub">
       Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
     </p>
-    <p style="margin-top:.75rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+    <p style="margin-top:.75rem; display:flex; gap:1rem;
+              justify-content:center; flex-wrap:wrap;">
       <a href="index.html"
-         style="color:rgba(255,255,255,.8); font-weight:600;
-                text-decoration:none; font-size:.875rem;">
+         style="color:rgba(255,255,255,.85); font-weight:700;
+                text-decoration:none; font-size:.875rem;
+                border:1px solid rgba(255,255,255,.4);
+                padding:.3rem .8rem; border-radius:20px;">
         🌾 Yield Predictor
       </a>
       <a href="analytics.html"
-         style="color:rgba(255,255,255,.8); font-weight:600;
-                text-decoration:none; font-size:.875rem;">
+         style="color:rgba(255,255,255,.85); font-weight:700;
+                text-decoration:none; font-size:.875rem;
+                border:1px solid rgba(255,255,255,.4);
+                padding:.3rem .8rem; border-radius:20px;">
         📊 Analytics
       </a>
     </p>
   </footer>
 
   <script src="js/disease.js"></script>
+
+  <!-- PWA: Register service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('/AgriTech-AI-Platform/sw.js')
+          .then(reg => console.log('[PWA] Registered:', reg.scope))
+          .catch(err => console.log('[PWA] Failed:', err));
+      });
+    }
+  </script>
+
 </body>
 </html>

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#1a6b3c"/>
+
+  <!-- Soil/ground layer -->
+  <ellipse cx="256" cy="380" rx="160" ry="30" fill="#2d5a1b" opacity="0.7"/>
+
+  <!-- Main stem -->
+  <rect x="248" y="200" width="16" height="180" rx="8" fill="#4aab6b"/>
+
+  <!-- Left leaf -->
+  <ellipse cx="210" cy="260" rx="60" ry="25"
+           fill="#6cc98a"
+           transform="rotate(-35 210 260)"/>
+
+  <!-- Right leaf -->
+  <ellipse cx="302" cy="240" rx="60" ry="25"
+           fill="#4aab6b"
+           transform="rotate(35 302 240)"/>
+
+  <!-- Top sprout leaf -->
+  <ellipse cx="256" cy="190" rx="40" ry="20"
+           fill="#8fe0a5"
+           transform="rotate(-15 256 190)"/>
+
+  <!-- Small soil dots -->
+  <circle cx="180" cy="375" r="6" fill="#f4a900" opacity="0.8"/>
+  <circle cx="256" cy="385" r="5" fill="#f4a900" opacity="0.6"/>
+  <circle cx="330" cy="372" r="7" fill="#f4a900" opacity="0.8"/>
+
+  <!-- AI circuit lines (bottom right) -->
+  <g stroke="#f4a900" stroke-width="3" opacity="0.7" fill="none">
+    <line x1="310" y1="340" x2="350" y2="340"/>
+    <line x1="350" y1="340" x2="370" y2="320"/>
+    <circle cx="370" cy="320" r="5" fill="#f4a900"/>
+    <line x1="370" y1="320" x2="390" y2="320"/>
+    <line x1="350" y1="340" x2="350" y2="360"/>
+    <circle cx="350" cy="360" r="4" fill="#f4a900"/>
+  </g>
+</svg>

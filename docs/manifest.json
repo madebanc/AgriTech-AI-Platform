@@ -1,0 +1,45 @@
+{
+  "name": "AgriTech AI — Farmer Advisory Platform",
+  "short_name": "AgriTech AI",
+  "description": "AI-powered crop yield prediction and farming advice for Nigerian farmers",
+  "start_url": "/AgriTech-AI-Platform/",
+  "scope": "/AgriTech-AI-Platform/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1a6b3c",
+  "theme_color": "#1a6b3c",
+  "lang": "en",
+  "categories": ["agriculture", "productivity", "education"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Yield Predictor",
+      "short_name": "Predict",
+      "description": "Get an AI crop yield prediction",
+      "url": "/AgriTech-AI-Platform/index.html",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Disease Guide",
+      "short_name": "Diseases",
+      "description": "Look up crop diseases",
+      "url": "/AgriTech-AI-Platform/disease.html",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Analytics",
+      "short_name": "Analytics",
+      "description": "View platform analytics",
+      "url": "/AgriTech-AI-Platform/analytics.html",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any" }]
+    }
+  ]
+}

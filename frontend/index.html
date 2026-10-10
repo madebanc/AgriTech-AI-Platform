@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AgriTech AI — Farmer Advisory Platform</title>
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- PWA support -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1a6b3c" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AgriTech AI" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
 </head>
 <body>
 
@@ -19,7 +28,6 @@
         </div>
       </div>
 
-      <!-- Right side: language buttons + status -->
       <div style="display:flex; align-items:center; gap:.75rem; flex-wrap:wrap;">
 
         <!-- Language toggle -->
@@ -94,8 +102,7 @@
               <span class="required">*</span>
             </label>
             <select id="crop" name="crop" required>
-              <option value=""
-                      data-i18n="ph_crop">-- Select your crop --</option>
+              <option value="" data-i18n="ph_crop">-- Select your crop --</option>
               <option value="Cassava">Cassava</option>
               <option value="Yam">Yam</option>
               <option value="Maize">Maize</option>
@@ -111,8 +118,7 @@
               <span class="required">*</span>
             </label>
             <select id="state" name="state" required>
-              <option value=""
-                      data-i18n="ph_state">-- Select your state --</option>
+              <option value="" data-i18n="ph_state">-- Select your state --</option>
               <option value="Abia">Abia</option>
               <option value="Adamawa">Adamawa</option>
               <option value="Akwa Ibom">Akwa Ibom</option>
@@ -205,8 +211,7 @@
                    min="4.0" max="9.0" step="0.1"
                    data-i18n-ph="ph_soil_ph"
                    placeholder="e.g. 6.2" required />
-            <small class="field-hint"
-                   data-i18n="hint_soil_ph">
+            <small class="field-hint" data-i18n="hint_soil_ph">
               Optimal: 5.5 – 6.5 for most crops
             </small>
           </div>
@@ -230,18 +235,15 @@
             <div class="toggle-group">
               <label class="toggle-option">
                 <input type="radio" name="improved_seeds" value="true" />
-                <span class="toggle-btn"
-                      data-i18n="seeds_yes">Yes</span>
+                <span class="toggle-btn" data-i18n="seeds_yes">Yes</span>
               </label>
               <label class="toggle-option">
                 <input type="radio" name="improved_seeds"
                        value="false" checked />
-                <span class="toggle-btn"
-                      data-i18n="seeds_no">No</span>
+                <span class="toggle-btn" data-i18n="seeds_no">No</span>
               </label>
             </div>
-            <small class="field-hint"
-                   data-i18n="hint_seeds">
+            <small class="field-hint" data-i18n="hint_seeds">
               Modern varieties from IITA / NASC
             </small>
           </div>
@@ -264,7 +266,6 @@
           </div>
         </div>
 
-        <!-- Submit button -->
         <button type="submit" class="btn-predict" id="submitBtn">
           <span id="btnText"
                 data-i18n="btn_predict">🤖 Get AI Prediction</span>
@@ -340,8 +341,7 @@
           <div class="whatif-uplift">
             <span id="whatifUplift"></span>
           </div>
-          <p class="whatif-desc"
-             data-i18n="whatif_desc">
+          <p class="whatif-desc" data-i18n="whatif_desc">
             Improved seeds + irrigation + 100 kg/ha fertilizer
           </p>
         </div>
@@ -375,12 +375,12 @@
 
   </main>
 
-      <!-- FOOTER -->
+  <!-- FOOTER -->
   <footer class="footer">
     <p>
       <span data-i18n="footer_built">Built by</span>
       <strong> Daniel Oyanogbezina</strong> —
-      AgriTech AI Platform — Day 11 of 365
+      AgriTech AI Platform — Day 12 of 365
     </p>
     <p class="footer-sub" data-i18n="footer_mission">
       Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
@@ -403,3 +403,21 @@
       </a>
     </p>
   </footer>
+
+  <script src="js/translations.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- PWA: Register service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('/AgriTech-AI-Platform/sw.js')
+          .then(reg => console.log('[PWA] Registered:', reg.scope))
+          .catch(err => console.log('[PWA] Failed:', err));
+      });
+    }
+  </script>
+
+</body>
+</html>
