@@ -2,6 +2,7 @@
 app.py — AgriTech AI Platform
 Author : Daniel Oyanogbezina
 Day 11 : Added /api/diseases endpoints
+Day 13 : Added /api/journal endpoints, offline first farm journal
 """
 
 import sys
@@ -30,6 +31,7 @@ from advisory import (
 )
 from predictor import predict_and_advise, MODEL_LOADED
 from database  import log_prediction, get_analytics
+from journal import add_entry as journal_add, get_entries as journal_list, delete_entry as journal_delete, get_stats as journal_stats
 
 app = Flask(__name__)
 CORS(app)
@@ -48,7 +50,7 @@ def ok_response(data: dict):
 def home():
     return ok_response({
         "name":    "AgriTech AI Platform API",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "author":  "Daniel Oyanogbezina",
         "mission": "AI-powered farming advice for Nigerian farmers",
         "endpoints": {
@@ -63,6 +65,8 @@ def home():
             "GET  /api/analytics":          "Dashboard analytics",
             "GET  /api/diseases/<crop>":    "Diseases for a crop",
             "GET  /api/diseases":           "All disease counts",
+            "GET  /api/journal":            "List journal entries",
+            "POST /api/journal":            "Save a journal entry",
         },
         "supported_crops": SUPPORTED_CROPS,
     })
@@ -75,7 +79,7 @@ def health():
         "status":       "online",
         "model_loaded": MODEL_LOADED,
         "timestamp":    datetime.datetime.now().isoformat(),
-        "server":       "AgriTech AI Platform v1.1",
+        "server":       "AgriTech AI Platform v1.2",
     })
 
 
@@ -295,6 +299,34 @@ def all_diseases():
     })
 
 
+# ── 12: Journal list and save ──────────────────────────────
+@app.route("/api/journal", methods=["GET", "POST"])
+def journal():
+    if request.method == "GET":
+        limit = request.args.get("limit", 50)
+        return ok_response({
+            "entries": journal_list(limit),
+            "stats": journal_stats(),
+        })
+    body = request.get_json(silent=True)
+    if not body:
+        return error_response("Request body must be JSON.")
+    try:
+        entry = journal_add(body)
+        return ok_response({"entry": entry})
+    except Exception as e:
+        return error_response(f"Could not save entry: {e}")
+
+
+# ── 13: Journal delete ─────────────────────────────────────
+@app.route("/api/journal/<entry_id>", methods=["DELETE"])
+def journal_delete_one(entry_id):
+    ok = journal_delete(entry_id)
+    if not ok:
+        return error_response("Entry not found.", 404)
+    return ok_response({"deleted": entry_id})
+
+
 # ── Error handlers ─────────────────────────────────────────
 @app.errorhandler(404)
 def not_found(e):
@@ -313,7 +345,7 @@ def server_error(e):
 # ── Run ────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("  AgriTech AI Platform — Farmer Advisory API v1.1")
+    print("  AgriTech AI Platform — Farmer Advisory API v1.2")
     print("  Author: Daniel Oyanogbezina")
     print("=" * 60)
     print(f"  Model loaded    : {MODEL_LOADED}")
@@ -321,7 +353,7 @@ if __name__ == "__main__":
     print(f"  Nigerian states : {len(NIGERIAN_STATES)}")
     print(f"  Diseases loaded : {sum(get_all_diseases().values())}")
     print()
-    print("  Endpoints (11 total):")
+    print("  Endpoints (13 total):")
     print("  GET  http://127.0.0.1:5001/")
     print("  GET  http://127.0.0.1:5001/health")
     print("  GET  http://127.0.0.1:5001/api/crops")
@@ -331,10 +363,11 @@ if __name__ == "__main__":
     print("  GET  http://127.0.0.1:5001/api/weather/<state>")
     print("  GET  http://127.0.0.1:5001/api/states")
     print("  GET  http://127.0.0.1:5001/api/analytics")
-    print("  GET  http://127.0.0.1:5001/api/diseases/<crop>  <- NEW")
-    print("  GET  http://127.0.0.1:5001/api/diseases         <- NEW")
+    print("  GET  http://127.0.0.1:5001/api/diseases/<crop>")
+    print("  GET  http://127.0.0.1:5001/api/diseases")
+    print("  GET  http://127.0.0.1:5001/api/journal  <- NEW Day 13")
+    print("  POST http://127.0.0.1:5001/api/journal  <- NEW Day 13")
     print()
     print("  Press CTRL+C to stop")
     print("=" * 60 + "\n")
-
     app.run(host="127.0.0.1", port=5001, debug=True)
