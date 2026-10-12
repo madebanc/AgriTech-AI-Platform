@@ -2,6 +2,7 @@
  * sw.js — AgriTech AI Platform Service Worker
  * Author : Daniel Oyanogbezina
  * Day 12 : Enables offline access and faster loading
+ * Day 14 : Adds journal page to offline cache
  *
  * How it works:
  * 1. On install — downloads and caches all app files
@@ -9,7 +10,7 @@
  * 3. On activate — removes old cached versions
  */
 
-const CACHE_NAME    = 'agritech-ai-v1';
+const CACHE_NAME    = 'agritech-ai-v2';
 const OFFLINE_URL   = '/AgriTech-AI-Platform/index.html';
 
 // Files to cache on install (the entire app shell)
@@ -18,10 +19,12 @@ const CACHE_FILES = [
   '/AgriTech-AI-Platform/index.html',
   '/AgriTech-AI-Platform/analytics.html',
   '/AgriTech-AI-Platform/disease.html',
+  '/AgriTech-AI-Platform/journal.html',
   '/AgriTech-AI-Platform/css/style.css',
   '/AgriTech-AI-Platform/js/app.js',
   '/AgriTech-AI-Platform/js/analytics.js',
   '/AgriTech-AI-Platform/js/disease.js',
+  '/AgriTech-AI-Platform/js/journal.js',
   '/AgriTech-AI-Platform/js/translations.js',
   '/AgriTech-AI-Platform/icons/icon.svg',
   '/AgriTech-AI-Platform/manifest.json',
@@ -42,7 +45,7 @@ self.addEventListener('install', event => {
       return cache.addAll([...CACHE_FILES, ...EXTERNAL_CACHE]);
     }).then(() => {
       console.log('[SW] All files cached successfully');
-      return self.skipWaiting(); // activate immediately
+      return self.skipWaiting();
     }).catch(err => {
       console.error('[SW] Cache failed:', err);
     })
@@ -65,7 +68,7 @@ self.addEventListener('activate', event => {
       );
     }).then(() => {
       console.log('[SW] Service worker activated');
-      return self.clients.claim(); // take control immediately
+      return self.clients.claim();
     })
   );
 });
@@ -74,17 +77,13 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Skip non-GET requests and browser extension requests
   if (event.request.method !== 'GET') return;
   if (url.protocol === 'chrome-extension:') return;
 
-  // For API requests — network first, no offline fallback
-  // (API data is dynamic and must be fresh)
   if (url.hostname.includes('onrender.com') ||
       url.hostname.includes('open-meteo.com')) {
     event.respondWith(
       fetch(event.request).catch(() => {
-        // If API is unreachable, return a helpful JSON response
         return new Response(
           JSON.stringify({
             success:  false,
@@ -101,12 +100,9 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For app files — cache first, then network
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       if (cachedResponse) {
-        // Serve from cache immediately
-        // But also fetch from network in background to keep cache fresh
         const fetchPromise = fetch(event.request).then(networkResponse => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
@@ -115,18 +111,16 @@ self.addEventListener('fetch', event => {
             });
           }
           return networkResponse;
-        }).catch(() => null); // silent fail — already have cached version
+        }).catch(() => null);
 
         return cachedResponse;
       }
 
-      // Not in cache — fetch from network
       return fetch(event.request).then(networkResponse => {
         if (!networkResponse || networkResponse.status !== 200) {
           return networkResponse;
         }
 
-        // Cache the new resource for next time
         const responseClone = networkResponse.clone();
         caches.open(CACHE_NAME).then(cache => {
           cache.put(event.request, responseClone);
@@ -135,7 +129,6 @@ self.addEventListener('fetch', event => {
         return networkResponse;
 
       }).catch(() => {
-        // Completely offline and not cached — show offline page
         if (event.request.destination === 'document') {
           return caches.match(OFFLINE_URL);
         }
