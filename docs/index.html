@@ -171,10 +171,18 @@
               <span data-i18n="label_farm_size">Farm Size (hectares)</span>
               <span class="required">*</span>
             </label>
-            <input type="number" id="farmSize" name="farm_size_ha"
-                   min="0.1" max="100" step="0.1"
+            <input type="number" id="farmSize" name="farm_size_input"
+                   min="0.1" max="1500" step="0.1"
                    data-i18n-ph="ph_farm_size"
                    placeholder="e.g. 2.5" required />
+            <div style="display:flex; gap:.5rem; margin-top:.5rem; align-items:center;">
+              <select id="farmUnit" style="padding:.5rem; border-radius:10px; border:1px solid #cbd5cc;">
+                <option value="hectare">Hectare</option>
+                <option value="acre">Acre</option>
+                <option value="plot">Plot (648 sqm Lagos standard)</option>
+              </select>
+            </div>
+            <small class="field-hint" id="sizeHelper">15 plots is about 1 hectare. 6 plots is about 1 acre. Plot sizes differ by town, confirm with extension officer if unsure.</small>
           </div>
 
           <div class="form-group">
@@ -207,12 +215,19 @@
               <span data-i18n="label_soil_ph">Soil pH</span>
               <span class="required">*</span>
             </label>
+            <select id="soilType" style="padding:.5rem; border-radius:10px; border:1px solid #cbd5cc; margin-bottom:.5rem; width:100%;">
+              <option value="">What is your soil like? Pick one</option>
+              <option value="sandy">Sandy, water drains fast, light colour</option>
+              <option value="loamy">Loamy, soft and dark, holds water well</option>
+              <option value="clay">Clay, sticky when wet, hard when dry</option>
+              <option value="unknown">Not sure</option>
+            </select>
             <input type="number" id="soilPh" name="soil_ph"
                    min="4.0" max="9.0" step="0.1"
                    data-i18n-ph="ph_soil_ph"
                    placeholder="e.g. 6.2" required />
             <small class="field-hint" data-i18n="hint_soil_ph">
-              Optimal: 5.5 – 6.5 for most crops
+              Pick your soil above, we fill a safe number below. For best accuracy get a strip test at the extension office. Optimal is 5.5 to 6.5 for most crops.
             </small>
           </div>
 
@@ -225,6 +240,7 @@
                    min="0" max="500" step="5"
                    data-i18n-ph="ph_fertilizer"
                    placeholder="e.g. 100" required />
+            <small class="field-hint" id="bagsHelper">100 kg is 2 bags of 50 kg. Enter kg per hectare here, we show bags to help.</small>
           </div>
         </div>
 
@@ -380,7 +396,7 @@
     <p>
       <span data-i18n="footer_built">Built by</span>
       <strong> Daniel Oyanogbezina</strong> —
-      AgriTech AI Platform — Day 14 of 365
+      AgriTech AI Platform — Day 15 of 365
     </p>
     <p class="footer-sub" data-i18n="footer_mission">
       Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB

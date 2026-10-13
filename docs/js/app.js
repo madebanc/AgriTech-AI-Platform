@@ -194,6 +194,43 @@ function showError(message) {
   $('errorSection').scrollIntoView({ behavior: 'smooth' });
 }
 
+
+/* ── Day 15: land unit conversion, model always gets hectares ── */
+function farmUnitToHa(value, unit) {
+  const v = parseFloat(value) || 0;
+  if (unit === "acre") return v * 0.4047;
+  if (unit === "plot") return v * 0.0648;
+  return v;
+}
+function updateSizeHelper() {
+  const el = document.getElementById("sizeHelper");
+  if (!el) return;
+  const v = parseFloat(document.getElementById("farmSize").value) || 0;
+  const u = document.getElementById("farmUnit") ? document.getElementById("farmUnit").value : "hectare";
+  const ha = farmUnitToHa(v, u);
+  el.textContent = v + " " + u + " is about " + ha.toFixed(2) + " hectare for the model. Note: 15 plots is about 1 hectare, 6 plots is about 1 acre. Plot sizes differ by town.";
+}
+function updateBagsHelper() {
+  const el = document.getElementById("bagsHelper");
+  if (!el) return;
+  const kg = parseFloat(document.getElementById("fertilizer").value) || 0;
+  el.textContent = kg + " kg per hectare is about " + (kg/50).toFixed(1) + " bags of 50 kg. Enter kg per hectare here, we show bags to help.";
+}
+
+
+/* ── Day 15 Task 3: soil plain words ── */
+const SOIL_DEFAULTS = { sandy: 5.8, loamy: 6.2, clay: 5.5, unknown: 6.0, "": 6.0 };
+function wireSoilType() {
+  const sel = document.getElementById("soilType");
+  const num = document.getElementById("soilPh");
+  if (!sel || !num) return;
+  sel.addEventListener("change", () => {
+    const v = SOIL_DEFAULTS[sel.value] ?? 6.0;
+    num.value = v;
+  });
+}
+wireSoilType();
+
 /* ── 5. Validate form ────────────────────────────────────── */
 function validateForm(data) {
   const errors = [];
@@ -209,13 +246,18 @@ function validateForm(data) {
 }
 
 /* ── 6. Form submit ──────────────────────────────────────── */
+document.getElementById("farmSize").addEventListener("input", updateSizeHelper);
+document.getElementById("farmUnit").addEventListener("change", updateSizeHelper);
+document.getElementById("fertilizer").addEventListener("input", updateBagsHelper);
+updateSizeHelper();
+updateBagsHelper();
 $('farmForm').addEventListener('submit', async function (e) {
   e.preventDefault();
 
   const data = {
     crop:          $('crop').value,
     state:         $('state').value,
-    farm_size_ha:  parseFloat($('farmSize').value),
+    farm_size_ha:  farmUnitToHa($('farmSize').value, document.getElementById("farmUnit") ? document.getElementById("farmUnit").value : "hectare"),
     rainfall_mm:   parseFloat($('rainfall').value),
     soil_ph:       parseFloat($('soilPh').value),
     fertilizer_kg: parseFloat($('fertilizer').value) || 0,

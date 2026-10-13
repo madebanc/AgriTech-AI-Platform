@@ -2,7 +2,8 @@
  * sw.js — AgriTech AI Platform Service Worker
  * Author : Daniel Oyanogbezina
  * Day 12 : Enables offline access and faster loading
- * Day 14 : Adds journal page to offline cache
+ * Day 14 : Adds journal
+ * Day 15 : New input helpers stay cached page to offline cache
  *
  * How it works:
  * 1. On install — downloads and caches all app files
@@ -10,7 +11,7 @@
  * 3. On activate — removes old cached versions
  */
 
-const CACHE_NAME    = 'agritech-ai-v2';
+const CACHE_NAME    = 'agritech-ai-v3';
 const OFFLINE_URL   = '/AgriTech-AI-Platform/index.html';
 
 // Files to cache on install (the entire app shell)
