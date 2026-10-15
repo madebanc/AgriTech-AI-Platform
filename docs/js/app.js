@@ -348,3 +348,92 @@ $('state').addEventListener('change', function () {
 LANG.init();           // load saved language + translate page
 applyPlaceholders();   // translate input placeholders
 checkServerStatus();   // ping the API
+
+/* Day 17: multilingual overrides for units soil bags review */
+function updateSizeHelper() {
+  var el = document.getElementById("sizeHelper");
+  if (!el) return;
+  var fv = document.getElementById("farmSize");
+  var fu = document.getElementById("farmUnit");
+  var v = parseFloat(fv && fv.value) || 0;
+  var uVal = fu ? fu.value : "hectare";
+  var ha = (typeof farmUnitToHa === "function") ? farmUnitToHa(v, uVal) : v;
+  var unitName = uVal;
+  try {
+    if (uVal === "hectare") unitName = LANG.t("unit_hectare");
+    else if (uVal === "acre") unitName = LANG.t("unit_acre");
+    else if (uVal === "plot") unitName = LANG.t("unit_plot");
+  } catch (e) {}
+  var tpl = "{v} {unit} is about {ha} hectare for the model.";
+  try { tpl = LANG.t("size_template") || tpl; } catch (e) {}
+  el.textContent = tpl.replace("{v}", v).replace("{unit}", unitName).replace("{ha}", ha.toFixed(2));
+}
+function updateBagsHelper() {
+  var el = document.getElementById("bagsHelper");
+  if (!el) return;
+  var f = document.getElementById("fertilizer");
+  var kg = parseFloat(f && f.value) || 0;
+  var bags = (kg / 50).toFixed(1);
+  var tpl = "{kg} kg per hectare is about {bags} bags of 50 kg.";
+  try { tpl = LANG.t("bags_template") || tpl; } catch (e) {}
+  el.textContent = tpl.replace("{kg}", kg).replace("{bags}", bags);
+}
+function plainBags(tons) {
+  var n = parseFloat(tons) || 0;
+  return Math.round(n * 20);
+}
+function updatePlainResult(crop, ha, tons) {
+  var el = document.getElementById("plainResult");
+  if (!el) {
+    var anchor = document.getElementById("yieldFarm");
+    if (!anchor || !anchor.parentElement) return;
+    el = document.createElement("p");
+    el.id = "plainResult";
+    el.style.cssText = "font-weight:700; margin-top:.5rem;";
+    anchor.parentElement.appendChild(el);
+  }
+  var tpl = "Your {crop} on {ha} hectare may give about {tons} tons, which is about {bags} bags of 50 kg.";
+  try { tpl = LANG.t("plain_template") || tpl; } catch (e) {}
+  el.textContent = tpl.replace("{crop}", crop).replace("{ha}", Number(ha).toFixed(2)).replace("{tons}", tons).replace("{bags}", plainBags(tons));
+}
+function confirmFarm(data) {
+  var rawVal = document.getElementById("farmSize") ? document.getElementById("farmSize").value : data.farm_size_ha;
+  var fu = document.getElementById("farmUnit");
+  var unit = fu ? fu.value : "hectare";
+  var fertKg = data.fertilizer_kg || 0;
+  var t = function (k, fb) { try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; } };
+  var msg = t("confirm_check", "Please check before we predict:") + "\n\nCrop: " + data.crop + "\nState: " + data.state + "\nSize: " + rawVal + " " + unit + " (about " + Number(data.farm_size_ha).toFixed(2) + " hectare)\nSoil pH: " + data.soil_ph + "\nFertilizer: " + fertKg + " kg (" + (fertKg / 50).toFixed(1) + " bags)\n\n" + t("confirm_ask", "Is this correct? Press OK to predict, Cancel to fix.");
+  return window.confirm(msg);
+}
+function applyDay17Static() {
+  try {
+    var fu = document.getElementById("farmUnit");
+    if (fu && fu.options && fu.options.length >= 3) {
+      fu.options[0].text = LANG.t("unit_hectare");
+      fu.options[1].text = LANG.t("unit_acre");
+      fu.options[2].text = LANG.t("unit_plot");
+    }
+    var st = document.getElementById("soilType");
+    if (st && st.options) {
+      for (var i = 0; i < st.options.length; i++) {
+        var v = st.options[i].value;
+        if (v === "") st.options[i].text = LANG.t("soil_prompt");
+        else if (v === "sandy") st.options[i].text = LANG.t("soil_sandy");
+        else if (v === "loamy") st.options[i].text = LANG.t("soil_loamy");
+        else if (v === "clay") st.options[i].text = LANG.t("soil_clay");
+        else if (v === "unknown") st.options[i].text = LANG.t("soil_unknown");
+      }
+    }
+  } catch (e) {}
+}
+if (typeof LANG !== "undefined" && LANG.setLanguage && !LANG.__day17hooked) {
+  var _origSet = LANG.setLanguage.bind(LANG);
+  LANG.setLanguage = function (code) {
+    var r = _origSet(code);
+    try { applyDay17Static(); updateSizeHelper(); updateBagsHelper(); } catch (e) {}
+    return r;
+  };
+  LANG.__day17hooked = true;
+}
+document.addEventListener("DOMContentLoaded", function () { try { applyDay17Static(); } catch (e) {} });
+try { applyDay17Static(); } catch (e) {}
