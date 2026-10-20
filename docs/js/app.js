@@ -437,3 +437,84 @@ if (typeof LANG !== "undefined" && LANG.setLanguage && !LANG.__day17hooked) {
 }
 document.addEventListener("DOMContentLoaded", function () { try { applyDay17Static(); } catch (e) {} });
 try { applyDay17Static(); } catch (e) {}
+
+
+/* Day 18: market timing and money in hand */
+var DAY18_PRICES = {
+  "Cassava": [40000, 80000], "Yam": [200000, 400000], "Maize": [150000, 250000],
+  "Rice": [180000, 320000], "Groundnut": [120000, 220000], "Cocoa": [800000, 1500000]
+};
+function day18T(k, fb) {
+  try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; }
+}
+function day18Money(n) {
+  return "₦" + Math.round(n).toLocaleString("en-NG");
+}
+function removeMarketPanel() {
+  var el = document.getElementById("marketPanel");
+  if (el && el.parentElement) el.parentElement.removeChild(el);
+}
+function marketPanelShell() {
+  removeMarketPanel();
+  var anchor = document.getElementById("yieldFarm");
+  if (!anchor || !anchor.parentElement) return null;
+  var greenCard = anchor.parentElement;
+  var section = greenCard.parentElement;
+  var panel = document.createElement("div");
+  panel.id = "marketPanel";
+  panel.style.cssText = "background:#fff;border-radius:14px;padding:1.2rem;margin:1rem 0;box-shadow:0 2px 10px rgba(0,0,0,.08);";
+  if (section && section.insertBefore) section.insertBefore(panel, greenCard.nextSibling);
+  else greenCard.parentElement.appendChild(panel);
+  return panel;
+}
+function renderMarket(crop, tons, marketTip) {
+  var panel = marketPanelShell();
+  if (!panel) return;
+  var bags = Math.round((parseFloat(tons) || 0) * 20);
+  var head = "<h3 style='margin:0 0 .6rem; color:#1a6b3c;'>" + day18T("market_title", "Market timing and money") + "</h3>";
+  var best = "<div style='margin-bottom:.8rem; font-weight:700;'>" + day18T("market_best", "Best selling months") + ": " + (marketTip || "-") + "</div>";
+  var body = "";
+  var range = DAY18_PRICES[crop];
+  var useFallback = true;
+  fetch(API + "/api/advice/" + encodeURIComponent(crop))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.success && d.advice && d.advice.price_range_ngn_per_ton) {
+        useFallback = false;
+        range = [d.advice.price_range_ngn_per_ton.low, d.advice.price_range_ngn_per_ton.high];
+        paintMarket(range, bags, tons);
+      }
+    })
+    .catch(function () { paintMarket(range, bags, tons); });
+  function paintMarket(r, b, t) {
+    var lowBag = r[0] / 20, highBag = r[1] / 20;
+    var lowMoney = b * lowBag, highMoney = b * highBag;
+    body = "<div style='display:grid;grid-template-columns:1fr 1fr;gap:.8rem;'>"
+      + "<div style='background:#f7faf7;border-radius:10px;padding:.8rem;'>"
+      + "<div style='font-size:.8rem;color:#555;'>" + day18T("market_bag_price", "Price per 50 kg bag") + "</div>"
+      + "<div style='font-weight:800;color:#1a6b3c;'>" + day18Money(lowBag) + " - " + day18Money(highBag) + "</div></div>"
+      + "<div style='background:#f7faf7;border-radius:10px;padding:.8rem;'>"
+      + "<div style='font-size:.8rem;color:#555;'>" + day18T("market_your_bags", "Your expected bags") + "</div>"
+      + "<div style='font-weight:800;color:#1a6b3c;'>" + b + " bags (" + t + " tons)</div></div></div>"
+      + "<div style='margin-top:.8rem;background:#e8f5ec;border-radius:10px;padding:.8rem;'>"
+      + "<div style='font-size:.8rem;color:#555;'>" + day18T("market_money", "Expected money if you sell") + "</div>"
+      + "<div style='font-weight:800;color:#1a6b3c;'>" + day18Money(lowMoney) + " - " + day18Money(highMoney) + "</div></div>"
+      + "<small style='display:block;margin-top:.7rem;color:#555;'>" + day18T("market_note", "Prices are indicative. Check the local market before selling.") + "</small>";
+    panel.innerHTML = head + best + body;
+  }
+  panel.innerHTML = head + best + "<small>" + day18T("market_offline", "Market prices need internet. Connect to see prices.") + "</small>";
+}
+if (typeof window !== "undefined" && typeof renderResults === "function" && !window.__day18hook) {
+  var _day18render = renderResults;
+  window.renderResults = function (result, calendarData) {
+    var r = _day18render.apply(this, arguments);
+    try {
+      var crop = result && result.crop;
+      var tons = result && result.prediction && result.prediction.yield_tons;
+      var tip = result && result.advice && result.advice.market_tip;
+      if (crop && tons) renderMarket(crop, tons, tip);
+    } catch (e) {}
+    return r;
+  };
+  window.__day18hook = true;
+}
