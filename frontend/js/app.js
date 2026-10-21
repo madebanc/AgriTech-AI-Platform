@@ -472,7 +472,7 @@ function renderMarket(crop, tons, marketTip) {
   if (!panel) return;
   var bags = Math.round((parseFloat(tons) || 0) * 20);
   var head = "<h3 style='margin:0 0 .6rem; color:#1a6b3c;'>" + day18T("market_title", "Market timing and money") + "</h3>";
-  var best = "<div style='margin-bottom:.8rem; font-weight:700;'>" + day18T("market_best", "Best selling months") + ": " + (marketTip || "-") + "</div>";
+  var best = "<div style='margin-bottom:.8rem; font-weight:700;'>" + day18T("market_best", "Best selling months") + ": " + day19CleanTip(marketTip) + "</div>";
   var body = "";
   var range = DAY18_PRICES[crop];
   var useFallback = true;
@@ -535,6 +535,9 @@ function day19Urgency(task) {
     return { key: "urg_fert", fb: "Time to fertilise", color: "#1d4ed8" };
   return { key: "urg_now", fb: "Do this now", color: "#1a6b3c" };
 }
+function day19CleanTip(t) {
+  return String(t || "-").replace(/^Best selling months:\s*/i, "").replace(/^Best time to sell:\s*/i, "");
+}
 function removeActionCard() {
   var el = document.getElementById("actionCard");
   if (el && el.parentElement) el.parentElement.removeChild(el);
@@ -566,7 +569,7 @@ function renderActionCard(crop, calendarData, marketTip) {
     : "";
   var sellLine = marketTip
     ? "<div style='margin-top:.6rem;font-size:.9rem;background:rgba(255,255,255,.15);border-radius:10px;padding:.6rem;'>"
-      + "<strong>" + day19T("action_sell", "Best time to sell") + ":</strong> " + marketTip + "</div>"
+      + "<strong>" + day19T("action_sell", "Best time to sell") + ":</strong> " + day19CleanTip(marketTip) + "</div>"
     : "";
   card.innerHTML = head + monthLine + taskLine + nextLine + sellLine;
   section.insertBefore(card, section.firstChild);
