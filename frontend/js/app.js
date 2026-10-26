@@ -728,3 +728,47 @@ try {
     LANG.__day20hooked = true;
   }
 } catch (e) {}
+
+
+/* Day 21: honesty badge, example data until verified */
+function day21HT(k, fb) {
+  try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; }
+}
+function ensureHonestyBadge() {
+  var section = document.getElementById("resultsSection");
+  if (!section) return;
+  var el = document.getElementById("honestyBadge");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "honestyBadge";
+    el.style.cssText = "background:#fff7ed;border:1px solid #fdba74;color:#7c2d12;border-radius:12px;padding:.8rem 1rem;margin:0 0 1rem;font-weight:600;";
+    section.insertBefore(el, section.firstChild);
+  }
+  var badge = day21HT("indicative_badge", "Indicative example, not verified yet");
+  var note = day21HT("honesty_note", "Estimate from example data. Real farm data check is in progress.");
+  var detail = day21HT("honesty_detail", "Use for planning only. Confirm with your extension officer or market before deciding.");
+  el.innerHTML = "<div style='font-weight:800;margin-bottom:.25rem;'>&#9888;&#65039; " + badge + "</div>"
+    + "<div>" + note + "</div>"
+    + "<div style='font-weight:400;font-size:.9rem;margin-top:.25rem;'>" + detail + "</div>";
+}
+if (typeof window !== "undefined" && typeof renderResults === "function" && !window.__day21honhook) {
+  var _day21render = window.renderResults || renderResults;
+  window.renderResults = function (result, calendarData) {
+    var r = _day21render.apply(this, arguments);
+    try { ensureHonestyBadge(); } catch (e) {}
+    return r;
+  };
+  try { renderResults = window.renderResults; } catch (e) {}
+  window.__day21honhook = true;
+}
+try {
+  if (typeof LANG !== "undefined" && LANG.setLanguage && !LANG.__day21honhooked) {
+    var _d21set = LANG.setLanguage.bind(LANG);
+    LANG.setLanguage = function (code) {
+      var r = _d21set(code);
+      try { ensureHonestyBadge(); } catch (e) {}
+      return r;
+    };
+    LANG.__day21honhooked = true;
+  }
+} catch (e) {}
