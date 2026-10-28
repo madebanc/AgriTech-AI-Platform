@@ -11,7 +11,7 @@
  * 3. On activate — removes old cached versions
  */
 
-const CACHE_NAME    = 'agritech-ai-v9';
+const CACHE_NAME    = 'agritech-ai-v10';
 const OFFLINE_URL   = '/AgriTech-AI-Platform/index.html';
 
 // Files to cache on install (the entire app shell)
