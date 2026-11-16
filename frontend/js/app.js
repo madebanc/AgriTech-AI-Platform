@@ -1,13 +1,14 @@
 /**
  * app.js — AgriTech AI Platform
  * Author : Daniel Oyanogbezina
- * Day 9  : Uses LANG.t() for all user-facing text
- *          Supports EN, YO, HA, IG languages
+ * Complete file: health status, rainfall auto-fill, unit and soil helpers,
+ * farm review, results, what to do now, market timing, estimate notice,
+ * saved farms, sharing, monthly checklist, and language switching.
  */
 
 const API = 'https://agritech-ai-platform.onrender.com';
 
-/* ── Rainfall by state (instant local fallback) ─────────── */
+/* ── Reference data ─────────────────────────────────────── */
 const STATE_RAINFALL = {
   "Abia":650,"Adamawa":900,"Akwa Ibom":2000,
   "Anambra":1500,"Bauchi":850,"Bayelsa":2200,
@@ -24,1006 +25,865 @@ const STATE_RAINFALL = {
   "Zamfara":600
 };
 
-/* ── Helpers ─────────────────────────────────────────────── */
-const $   = id => document.getElementById(id);
-const fmt = n  => '\u20a6' + Number(n).toLocaleString('en-NG');
+const SOIL_DEFAULTS = { sandy: 5.8, loamy: 6.2, clay: 5.5, unknown: 6.0, "": 6.0 };
 
-function show(id) { $(id).classList.remove('hidden'); }
-function hide(id) { $(id).classList.add('hidden');    }
+const FALLBACK_PRICES = {
+  Cassava: [40000, 80000], Yam: [200000, 400000], Maize: [150000, 250000],
+  Rice: [180000, 320000], Groundnut: [120000, 220000], Cocoa: [800000, 1500000]
+};
 
-/* ── Apply placeholder translations ─────────────────────── */
-function applyPlaceholders() {
-  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
-    const key = el.getAttribute('data-i18n-ph');
-    el.placeholder = LANG.t(key);
-  });
-}
+const PROFILE_KEY = 'agritech_farm_profiles';
+const CHECK_PREFIX = 'agritech_checks_';
 
-/* ── 1. Server health check ──────────────────────────────── */
-async function checkServerStatus() {
-  const dot  = $('statusDot');
-  const text = $('statusText');
+const BTN_PRIMARY = 'padding:.55rem 1rem;font-size:.9rem;font-weight:800;background:#1a6b3c;color:#fff;border:none;border-radius:24px;cursor:pointer;';
+const BTN_OUTLINE = 'padding:.55rem 1rem;font-size:.9rem;font-weight:800;background:#fff;color:#1a6b3c;border:2px solid #1a6b3c;border-radius:24px;cursor:pointer;';
+const BTN_DANGER  = 'padding:.45rem 1rem;font-size:.85rem;font-weight:800;background:#fff;color:#b91c1c;border:2px solid #b91c1c;border-radius:24px;cursor:pointer;';
 
-  dot.className    = 'status-dot';
-  text.textContent = LANG.t('status_connecting');
+/* ── Helpers ────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const naira = n => '\u20a6' + Math.round(Number(n) || 0).toLocaleString('en-NG');
+const bagsFromTons = tons => Math.round((parseFloat(tons) || 0) * 20);
 
+function t(key, fallback) {
   try {
-    const res  = await fetch(`${API}/health`,
-                   { signal: AbortSignal.timeout(20000) });
-    const data = await res.json();
-
-    if (data.success && data.model_loaded) {
-      dot.className    = 'status-dot online';
-      text.textContent = LANG.t('status_online');
-    } else {
-      dot.className    = 'status-dot offline';
-      text.textContent = LANG.t('status_offline');
-    }
-  } catch {
-    dot.className    = 'status-dot offline';
-    text.textContent = LANG.t('status_offline');
-  }
+    const v = LANG.t(key);
+    if (v && v !== key) return v;
+  } catch (e) { /* fall through */ }
+  return fallback !== undefined ? fallback : key;
 }
 
-/* ── 2. Auto-fill rainfall when state changes ────────────── */
-async function onStateChange(selectedState) {
-  const rainfallInput = $('rainfall');
-  const hint          = $('rainfallHint');
-  const badge         = $('autoFillBadge');
+function fill(template, vars) {
+  let out = template;
+  Object.keys(vars).forEach(k => {
+    out = out.split('{' + k + '}').join(String(vars[k]));
+  });
+  return out;
+}
 
-  if (!selectedState) {
-    rainfallInput.value       = '';
-    rainfallInput.placeholder = LANG.t('ph_rainfall');
-    if (hint)  hint.textContent = LANG.t('hint_rainfall');
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
+  ));
+}
+
+function show(id) { const el = $(id); if (el) el.classList.remove('hidden'); }
+function hide(id) { const el = $(id); if (el) el.classList.add('hidden'); }
+function setText(id, value) { const el = $(id); if (el) el.textContent = value; }
+function setVal(id, value) {
+  const el = $(id);
+  if (el && value !== undefined && value !== null) el.value = value;
+}
+function removeEl(id) {
+  const el = $(id);
+  if (el && el.parentElement) el.parentElement.removeChild(el);
+}
+function checkedValue(name) {
+  const el = document.querySelector('input[name="' + name + '"]:checked');
+  return el ? el.value : '';
+}
+function cleanTip(tip) {
+  return String(tip || '-')
+    .replace(/^Best selling months:\s*/i, '')
+    .replace(/^Best time to sell:\s*/i, '');
+}
+
+/* ── Server status ──────────────────────────────────────── */
+let serverState = 'connecting';
+
+function paintStatus() {
+  const dot = $('statusDot'), text = $('statusText');
+  if (!dot || !text) return;
+  const map = {
+    connecting: { cls: '',        key: 'status_connecting', fb: 'Connecting...' },
+    online:     { cls: 'online',  key: 'status_online',     fb: 'AI Online' },
+    offline:    { cls: 'offline', key: 'status_offline',    fb: 'Server offline' }
+  };
+  const s = map[serverState];
+  dot.className = s.cls ? 'status-dot ' + s.cls : 'status-dot';
+  text.textContent = t(s.key, s.fb);
+}
+
+async function checkServerStatus() {
+  serverState = 'connecting';
+  paintStatus();
+  try {
+    const res = await fetch(API + '/health', { signal: AbortSignal.timeout(20000) });
+    const data = await res.json();
+    serverState = (data.success && data.model_loaded) ? 'online' : 'offline';
+  } catch (e) {
+    serverState = 'offline';
+  }
+  paintStatus();
+}
+
+/* ── Rainfall auto-fill ─────────────────────────────────── */
+async function onStateChange(state) {
+  const rain  = $('rainfall');
+  const hint  = $('rainfallHint');
+  const badge = $('autoFillBadge');
+  if (!rain) return;
+
+  if (!state) {
+    rain.value = '';
+    rain.placeholder = t('ph_rainfall', 'Select state above to auto-fill');
+    if (hint) hint.textContent = t('hint_rainfall', '');
     if (badge) badge.style.display = 'none';
     return;
   }
 
-  /* Step 1: Fill immediately from local table */
-  const local = STATE_RAINFALL[selectedState];
+  const local = STATE_RAINFALL[state];
   if (local) {
-    rainfallInput.value = local;
-    if (hint)  hint.textContent = `${selectedState}: ~${local}mm/year`;
+    rain.value = local;
+    if (hint) hint.textContent = state + ': ~' + local + 'mm/year';
     if (badge) {
-      badge.textContent    = LANG.t('autofill_badge');
-      badge.style.display  = 'inline';
+      badge.textContent = t('autofill_badge', 'Auto-filled');
+      badge.style.display = 'inline';
     }
   }
 
-  /* Step 2: Improve with live weather API */
   try {
-    const res  = await fetch(
-      `${API}/api/weather/${encodeURIComponent(selectedState)}`,
-      { signal: AbortSignal.timeout(10000) }
-    );
+    const res = await fetch(API + '/api/weather/' + encodeURIComponent(state),
+                            { signal: AbortSignal.timeout(10000) });
     const data = await res.json();
-
-    if (data.success && data.weather?.recommended_input_mm) {
-      const mm = data.weather.recommended_input_mm;
-      rainfallInput.value = mm;
-      if (hint) {
-        hint.textContent =
-          `${selectedState}: ~${mm}mm/year (live weather)`;
-      }
+    const mm = data.success && data.weather && data.weather.recommended_input_mm;
+    if (mm) {
+      rain.value = mm;
+      if (hint) hint.textContent = state + ': ~' + mm + 'mm/year (live weather)';
     }
-  } catch { /* keep local value */ }
+  } catch (e) { /* keep the local value */ }
 }
 
-/* ── 3. Render results ───────────────────────────────────── */
-function renderResults(result, calendarData) {
-  const { crop, farm_size_ha, prediction,
-          advice, risk_flags, what_if } = result;
-
-  $('resultCrop').textContent = crop;
-  $('yieldTons').textContent  = prediction.yield_tons;
-  $('yieldFarm').textContent  = `${farm_size_ha} ha`;
-  updatePlainResult(crop, farm_size_ha, prediction.yield_tons);
-  $('incomeLow').textContent  = fmt(prediction.income_low_ngn);
-  $('incomeMid').textContent  = fmt(prediction.income_mid_ngn);
-  $('incomeHigh').textContent = fmt(prediction.income_high_ngn);
-
-  /* Risk flags */
-  const riskEl = $('riskContent');
-  if (!risk_flags || risk_flags.length === 0) {
-    riskEl.innerHTML =
-      `<div class="no-risk">${LANG.t('no_risk')}</div>`;
-  } else {
-    riskEl.innerHTML =
-      `<ul class="risk-list">` +
-      risk_flags.map(r =>
-        `<li class="risk-item"><span>!</span><span>${r}</span></li>`
-      ).join('') + `</ul>`;
-  }
-
-  /* What-if */
-  $('whatifCurrent').textContent = `${prediction.yield_tons}t`;
-  $('whatifBest').textContent    = `${what_if.yield_tons}t`;
-  $('whatifUplift').textContent  =
-    `+${what_if.uplift_percent}% ${LANG.t('uplift_text')}`;
-
-  /* Advice grid — labels come from translation */
-  const adviceItems = [
-    { label: LANG.t('adv_season'),    value: advice.season },
-    { label: LANG.t('adv_spacing'),   value: advice.spacing },
-    { label: LANG.t('adv_harvest'),   value: advice.harvest },
-    { label: LANG.t('adv_fertilizer'),value: advice.fertilizer_tip },
-    { label: LANG.t('adv_water'),     value: advice.water },
-    { label: LANG.t('adv_soil'),      value: advice.soil },
-    { label: LANG.t('adv_disease'),   value: advice.disease_watch },
-    { label: LANG.t('adv_market'),    value: advice.market_tip },
-  ];
-
-  $('adviceGrid').innerHTML = adviceItems.map(item =>
-    `<div class="advice-item">
-       <span class="advice-label">${item.label}</span>
-       <span class="advice-value">${item.value}</span>
-     </div>`
-  ).join('');
-
-  /* Calendar */
-  const cal = calendarData?.calendar;
-  if (cal) {
-    $('calendarContent').innerHTML =
-      `<div class="calendar-grid">
-         <div class="cal-item past">
-           <span class="cal-month">${cal.last_month.month}</span>
-           <p class="cal-task">${cal.last_month.task}</p>
-         </div>
-         <div class="cal-item current">
-           <span class="cal-now-badge"
-                 data-i18n="now_badge">${LANG.t('now_badge')}</span>
-           <span class="cal-month">${cal.this_month.month}</span>
-           <p class="cal-task">${cal.this_month.task}</p>
-         </div>
-         <div class="cal-item next">
-           <span class="cal-month">${cal.next_month.month}</span>
-           <p class="cal-task">${cal.next_month.task}</p>
-         </div>
-       </div>`;
-  }
-
-  show('resultsSection');
-  hide('errorSection');
-  $('resultsSection').scrollIntoView({ behavior: 'smooth' });
-}
-
-/* ── 4. Show error ───────────────────────────────────────── */
-function showError(message) {
-  $('errorMessage').textContent = message;
-  show('errorSection');
-  hide('resultsSection');
-  $('errorSection').scrollIntoView({ behavior: 'smooth' });
-}
-
-
-/* ── Day 15: land unit conversion, model always gets hectares ── */
+/* ── Units and fertilizer helpers ───────────────────────── */
 function farmUnitToHa(value, unit) {
   const v = parseFloat(value) || 0;
-  if (unit === "acre") return v * 0.4047;
-  if (unit === "plot") return v * 0.0648;
+  if (unit === 'acre') return v * 0.4047;
+  if (unit === 'plot') return v * 0.0648;
   return v;
 }
+
+function currentUnit() {
+  const u = $('farmUnit');
+  return u ? u.value : 'hectare';
+}
+
+function unitLabel(unit) {
+  if (unit === 'acre') return t('unit_acre', 'Acre');
+  if (unit === 'plot') return t('unit_plot', 'Plot (648 sqm Lagos standard)');
+  return t('unit_hectare', 'Hectare');
+}
+
 function updateSizeHelper() {
-  const el = document.getElementById("sizeHelper");
+  const el = $('sizeHelper');
   if (!el) return;
-  const v = parseFloat(document.getElementById("farmSize").value) || 0;
-  const u = document.getElementById("farmUnit") ? document.getElementById("farmUnit").value : "hectare";
-  const ha = farmUnitToHa(v, u);
-  el.textContent = v + " " + u + " is about " + ha.toFixed(2) + " hectare for the model. Note: 15 plots is about 1 hectare, 6 plots is about 1 acre. Plot sizes differ by town.";
+  const raw = $('farmSize') ? $('farmSize').value : '';
+  const v = parseFloat(raw) || 0;
+  const unit = currentUnit();
+  el.textContent = fill(
+    t('size_template', '{v} {unit} is about {ha} hectare for the model.'),
+    { v: v, unit: unitLabel(unit), ha: farmUnitToHa(v, unit).toFixed(2) }
+  );
 }
+
 function updateBagsHelper() {
-  const el = document.getElementById("bagsHelper");
+  const el = $('bagsHelper');
   if (!el) return;
-  const kg = parseFloat(document.getElementById("fertilizer").value) || 0;
-  el.textContent = kg + " kg per hectare is about " + (kg/50).toFixed(1) + " bags of 50 kg. Enter kg per hectare here, we show bags to help.";
+  const kg = parseFloat($('fertilizer') ? $('fertilizer').value : '') || 0;
+  el.textContent = fill(
+    t('bags_template', '{kg} kg per hectare is about {bags} bags of 50 kg.'),
+    { kg: kg, bags: (kg / 50).toFixed(1) }
+  );
 }
 
-
-/* ── Day 15 Task 3: soil plain words ── */
-const SOIL_DEFAULTS = { sandy: 5.8, loamy: 6.2, clay: 5.5, unknown: 6.0, "": 6.0 };
 function wireSoilType() {
-  const sel = document.getElementById("soilType");
-  const num = document.getElementById("soilPh");
+  const sel = $('soilType'), num = $('soilPh');
   if (!sel || !num) return;
-  sel.addEventListener("change", () => {
-    const v = SOIL_DEFAULTS[sel.value] ?? 6.0;
-    num.value = v;
+  sel.addEventListener('change', () => {
+    const v = SOIL_DEFAULTS[sel.value];
+    num.value = (v !== undefined) ? v : 6.0;
   });
 }
-wireSoilType();
 
-/* ── 5. Validate form ────────────────────────────────────── */
-function validateForm(data) {
+function applyStaticLabels() {
+  const fu = $('farmUnit');
+  if (fu) {
+    const map = { hectare: 'unit_hectare', acre: 'unit_acre', plot: 'unit_plot' };
+    Array.from(fu.options).forEach(o => {
+      if (map[o.value]) o.textContent = t(map[o.value], o.textContent);
+    });
+  }
+  const st = $('soilType');
+  if (st) {
+    const map = {
+      '': 'soil_prompt', sandy: 'soil_sandy', loamy: 'soil_loamy',
+      clay: 'soil_clay', unknown: 'soil_unknown'
+    };
+    Array.from(st.options).forEach(o => {
+      if (map[o.value] !== undefined) o.textContent = t(map[o.value], o.textContent);
+    });
+  }
+}
+
+function applyPlaceholders() {
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    el.placeholder = LANG.t(el.getAttribute('data-i18n-ph'));
+  });
+}
+
+/* ── Validation and farm review ─────────────────────────── */
+function validateForm(d) {
   const errors = [];
-  if (!data.crop)          errors.push(LANG.t('err_no_crop'));
-  if (!data.state)         errors.push(LANG.t('err_no_state'));
-  if (!data.farm_size_ha || data.farm_size_ha < 0.1)
-                           errors.push(LANG.t('err_farm_size'));
-  if (!data.rainfall_mm || data.rainfall_mm < 300)
-                           errors.push(LANG.t('err_rainfall'));
-  if (!data.soil_ph || data.soil_ph < 4 || data.soil_ph > 9)
-                           errors.push(LANG.t('err_soil_ph'));
+  if (!d.crop)  errors.push(t('err_no_crop', 'Please select a crop type.'));
+  if (!d.state) errors.push(t('err_no_state', 'Please select your Nigerian state.'));
+  if (!d.farm_size_ha || d.farm_size_ha < 0.1)
+    errors.push(t('err_farm_size', 'Farm size must be at least 0.1 hectares.'));
+  if (!d.rainfall_mm || d.rainfall_mm < 300)
+    errors.push(t('err_rainfall', 'Rainfall must be at least 300mm. Select a state to auto-fill.'));
+  if (!d.soil_ph || d.soil_ph < 4 || d.soil_ph > 9)
+    errors.push(t('err_soil_ph', 'Soil pH must be between 4.0 and 9.0.'));
   return errors;
 }
 
-
-/* ── Day 16: review in plain farmer words before sending ── */
-function confirmFarm(data) {
-  const unitEl = document.getElementById("farmUnit");
-  const rawVal = document.getElementById("farmSize") ? document.getElementById("farmSize").value : data.farm_size_ha;
-  const unit = unitEl ? unitEl.value : "hectare";
-  const fertKg = data.fertilizer_kg || 0;
-  const msg = "Please check before we predict:\n\nCrop: " + data.crop + "\nState: " + data.state + "\nSize: " + rawVal + " " + unit + " (about " + Number(data.farm_size_ha).toFixed(2) + " hectare for the model)\nSoil pH: " + data.soil_ph + "\nFertilizer: " + fertKg + " kg per hectare (about " + (fertKg/50).toFixed(1) + " bags)\n\nIs this correct? Press OK to predict, Cancel to fix.";
+function confirmFarm(d, rawSize) {
+  const msg = [
+    t('confirm_check', 'Please check before we predict:'),
+    '',
+    'Crop: ' + d.crop,
+    'State: ' + d.state,
+    'Size: ' + rawSize + ' ' + unitLabel(currentUnit()) +
+      ' (about ' + d.farm_size_ha.toFixed(2) + ' hectare)',
+    'Soil pH: ' + d.soil_ph,
+    'Fertilizer: ' + d.fertilizer_kg + ' kg (' + (d.fertilizer_kg / 50).toFixed(1) + ' bags)',
+    '',
+    t('confirm_ask', 'Is this correct? Press OK to predict, Cancel to fix.')
+  ].join('\n');
   return window.confirm(msg);
 }
-function plainBags(tons) {
-  const n = parseFloat(tons) || 0;
-  return Math.round(n * 20);
-}
-function updatePlainResult(crop, ha, tons) {
-  let el = document.getElementById("plainResult");
-  if (!el) {
-    const anchor = document.getElementById("yieldFarm");
-    if (!anchor || !anchor.parentElement) return;
-    el = document.createElement("p");
-    el.id = "plainResult";
-    el.style.cssText = "font-weight:700; margin-top:.5rem;";
-    anchor.parentElement.appendChild(el);
-  }
-  el.textContent = "Your " + crop + " on " + Number(ha).toFixed(2) + " hectare may give about " + tons + " tons, which is about " + plainBags(tons) + " bags of 50 kg. This is an estimate for planning, not a promise. Weather and pests can change it.";
+
+/* ── Errors and loading state ───────────────────────────── */
+function showError(message) {
+  setText('errorMessage', message);
+  show('errorSection');
+  hide('resultsSection');
+  const sec = $('errorSection');
+  if (sec) sec.scrollIntoView({ behavior: 'smooth' });
 }
 
-/* ── 6. Form submit ──────────────────────────────────────── */
-document.getElementById("farmSize").addEventListener("input", updateSizeHelper);
-document.getElementById("farmUnit").addEventListener("change", updateSizeHelper);
-document.getElementById("fertilizer").addEventListener("input", updateBagsHelper);
-updateSizeHelper();
-updateBagsHelper();
-$('farmForm').addEventListener('submit', async function (e) {
-  e.preventDefault();
-
-  const data = {
-    crop:          $('crop').value,
-    state:         $('state').value,
-    farm_size_ha:  farmUnitToHa($('farmSize').value, document.getElementById("farmUnit") ? document.getElementById("farmUnit").value : "hectare"),
-    rainfall_mm:   parseFloat($('rainfall').value),
-    soil_ph:       parseFloat($('soilPh').value),
-    fertilizer_kg: parseFloat($('fertilizer').value) || 0,
-    improved_seeds:
-      document.querySelector('input[name="improved_seeds"]:checked')
-              ?.value === 'true',
-    irrigation:
-      document.querySelector('input[name="irrigation"]:checked')
-              ?.value === 'true',
-  };
-
-  const errors = validateForm(data);
-  if (errors.length) { showError(errors.join(' ')); return; }
-  if (!confirmFarm(data)) { return; }
-
-  /* Loading state */
+function setLoading(on) {
   const btn = $('submitBtn');
-  $('btnText').classList.add('hidden');
-  $('btnSpinner').classList.remove('hidden');
-  btn.disabled = true;
-  hide('errorSection');
-
-  try {
-    const [predictRes, calendarRes] = await Promise.all([
-      fetch(`${API}/api/predict`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(data),
-        signal:  AbortSignal.timeout(60000),
-      }),
-      fetch(`${API}/api/calendar/${encodeURIComponent(data.crop)}`,
-            { signal: AbortSignal.timeout(60000) }),
-    ]);
-
-    const predictJson  = await predictRes.json();
-    const calendarJson = await calendarRes.json();
-
-    if (!predictJson.success) {
-      showError(predictJson.error || LANG.t('err_server'));
-      return;
-    }
-
-    renderResults(predictJson.result, calendarJson);
-
-  } catch {
-    showError(LANG.t('err_server'));
-  } finally {
-    $('btnText').classList.remove('hidden');
-    $('btnSpinner').classList.add('hidden');
-    btn.disabled = false;
-  }
-});
-
-/* ── 7. State change listener ────────────────────────────── */
-$('state').addEventListener('change', function () {
-  onStateChange(this.value);
-});
-
-/* ── 8. Initialise ───────────────────────────────────────── */
-LANG.init();           // load saved language + translate page
-applyPlaceholders();   // translate input placeholders
-checkServerStatus();   // ping the API
-
-/* Day 17: multilingual overrides for units soil bags review */
-function updateSizeHelper() {
-  var el = document.getElementById("sizeHelper");
-  if (!el) return;
-  var fv = document.getElementById("farmSize");
-  var fu = document.getElementById("farmUnit");
-  var v = parseFloat(fv && fv.value) || 0;
-  var uVal = fu ? fu.value : "hectare";
-  var ha = (typeof farmUnitToHa === "function") ? farmUnitToHa(v, uVal) : v;
-  var unitName = uVal;
-  try {
-    if (uVal === "hectare") unitName = LANG.t("unit_hectare");
-    else if (uVal === "acre") unitName = LANG.t("unit_acre");
-    else if (uVal === "plot") unitName = LANG.t("unit_plot");
-  } catch (e) {}
-  var tpl = "{v} {unit} is about {ha} hectare for the model.";
-  try { tpl = LANG.t("size_template") || tpl; } catch (e) {}
-  el.textContent = tpl.replace("{v}", v).replace("{unit}", unitName).replace("{ha}", ha.toFixed(2));
+  if (!btn) return;
+  const txt = $('btnText'), spin = $('btnSpinner');
+  if (txt)  txt.classList.toggle('hidden', on);
+  if (spin) spin.classList.toggle('hidden', !on);
+  btn.disabled = on;
+  if (on) hide('errorSection');
 }
-function updateBagsHelper() {
-  var el = document.getElementById("bagsHelper");
-  if (!el) return;
-  var f = document.getElementById("fertilizer");
-  var kg = parseFloat(f && f.value) || 0;
-  var bags = (kg / 50).toFixed(1);
-  var tpl = "{kg} kg per hectare is about {bags} bags of 50 kg.";
-  try { tpl = LANG.t("bags_template") || tpl; } catch (e) {}
-  el.textContent = tpl.replace("{kg}", kg).replace("{bags}", bags);
-}
-function plainBags(tons) {
-  var n = parseFloat(tons) || 0;
-  return Math.round(n * 20);
-}
-function updatePlainResult(crop, ha, tons) {
-  var el = document.getElementById("plainResult");
+
+/* ── Results: plain summary ─────────────────────────────── */
+function renderPlainResult(crop, ha, tons) {
+  let el = $('plainResult');
   if (!el) {
-    var anchor = document.getElementById("yieldFarm");
+    const anchor = $('yieldFarm');
     if (!anchor || !anchor.parentElement) return;
-    el = document.createElement("p");
-    el.id = "plainResult";
-    el.style.cssText = "font-weight:700; margin-top:.5rem;";
+    el = document.createElement('p');
+    el.id = 'plainResult';
+    el.style.cssText = 'font-weight:700;margin-top:.5rem;';
     anchor.parentElement.appendChild(el);
   }
-  var tpl = "Your {crop} on {ha} hectare may give about {tons} tons, which is about {bags} bags of 50 kg.";
-  try { tpl = LANG.t("plain_template") || tpl; } catch (e) {}
-  el.textContent = tpl.replace("{crop}", crop).replace("{ha}", Number(ha).toFixed(2)).replace("{tons}", tons).replace("{bags}", plainBags(tons));
-}
-function confirmFarm(data) {
-  var rawVal = document.getElementById("farmSize") ? document.getElementById("farmSize").value : data.farm_size_ha;
-  var fu = document.getElementById("farmUnit");
-  var unit = fu ? fu.value : "hectare";
-  var fertKg = data.fertilizer_kg || 0;
-  var t = function (k, fb) { try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; } };
-  var msg = t("confirm_check", "Please check before we predict:") + "\n\nCrop: " + data.crop + "\nState: " + data.state + "\nSize: " + rawVal + " " + unit + " (about " + Number(data.farm_size_ha).toFixed(2) + " hectare)\nSoil pH: " + data.soil_ph + "\nFertilizer: " + fertKg + " kg (" + (fertKg / 50).toFixed(1) + " bags)\n\n" + t("confirm_ask", "Is this correct? Press OK to predict, Cancel to fix.");
-  return window.confirm(msg);
-}
-function applyDay17Static() {
-  try {
-    var fu = document.getElementById("farmUnit");
-    if (fu && fu.options && fu.options.length >= 3) {
-      fu.options[0].text = LANG.t("unit_hectare");
-      fu.options[1].text = LANG.t("unit_acre");
-      fu.options[2].text = LANG.t("unit_plot");
-    }
-    var st = document.getElementById("soilType");
-    if (st && st.options) {
-      for (var i = 0; i < st.options.length; i++) {
-        var v = st.options[i].value;
-        if (v === "") st.options[i].text = LANG.t("soil_prompt");
-        else if (v === "sandy") st.options[i].text = LANG.t("soil_sandy");
-        else if (v === "loamy") st.options[i].text = LANG.t("soil_loamy");
-        else if (v === "clay") st.options[i].text = LANG.t("soil_clay");
-        else if (v === "unknown") st.options[i].text = LANG.t("soil_unknown");
-      }
-    }
-  } catch (e) {}
-}
-if (typeof LANG !== "undefined" && LANG.setLanguage && !LANG.__day17hooked) {
-  var _origSet = LANG.setLanguage.bind(LANG);
-  LANG.setLanguage = function (code) {
-    var r = _origSet(code);
-    try { applyDay17Static(); updateSizeHelper(); updateBagsHelper(); } catch (e) {}
-    return r;
-  };
-  LANG.__day17hooked = true;
-}
-document.addEventListener("DOMContentLoaded", function () { try { applyDay17Static(); } catch (e) {} });
-try { applyDay17Static(); } catch (e) {}
-
-
-/* Day 18: market timing and money in hand */
-var DAY18_PRICES = {
-  "Cassava": [40000, 80000], "Yam": [200000, 400000], "Maize": [150000, 250000],
-  "Rice": [180000, 320000], "Groundnut": [120000, 220000], "Cocoa": [800000, 1500000]
-};
-function day18T(k, fb) {
-  try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; }
-}
-function day18Money(n) {
-  return "₦" + Math.round(n).toLocaleString("en-NG");
-}
-function removeMarketPanel() {
-  var el = document.getElementById("marketPanel");
-  if (el && el.parentElement) el.parentElement.removeChild(el);
-}
-function marketPanelShell() {
-  removeMarketPanel();
-  var anchor = document.getElementById("yieldFarm");
-  if (!anchor || !anchor.parentElement) return null;
-  var greenCard = anchor.parentElement;
-  var section = greenCard.parentElement;
-  var panel = document.createElement("div");
-  panel.id = "marketPanel";
-  panel.style.cssText = "background:#fff;border-radius:14px;padding:1.2rem;margin:1rem 0;box-shadow:0 2px 10px rgba(0,0,0,.08);";
-  if (section && section.insertBefore) section.insertBefore(panel, greenCard.nextSibling);
-  else greenCard.parentElement.appendChild(panel);
-  return panel;
-}
-function renderMarket(crop, tons, marketTip) {
-  var panel = marketPanelShell();
-  if (!panel) return;
-  var bags = Math.round((parseFloat(tons) || 0) * 20);
-  var head = "<h3 style='margin:0 0 .6rem; color:#1a6b3c;'>" + day18T("market_title", "Market timing and money") + "</h3>";
-  var best = "<div style='margin-bottom:.8rem; font-weight:700;'>" + day18T("market_best", "Best selling months") + ": " + day19CleanTip(marketTip) + "</div>";
-  var body = "";
-  var range = DAY18_PRICES[crop];
-  var useFallback = true;
-  fetch(API + "/api/advice/" + encodeURIComponent(crop))
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d && d.success && d.advice && d.advice.price_range_ngn_per_ton) {
-        useFallback = false;
-        range = [d.advice.price_range_ngn_per_ton.low, d.advice.price_range_ngn_per_ton.high];
-        paintMarket(range, bags, tons);
-      }
-    })
-    .catch(function () { paintMarket(range, bags, tons); });
-  function paintMarket(r, b, t) {
-    var lowBag = r[0] / 20, highBag = r[1] / 20;
-    var lowMoney = b * lowBag, highMoney = b * highBag;
-    body = "<div style='display:grid;grid-template-columns:1fr 1fr;gap:.8rem;'>"
-      + "<div style='background:#f7faf7;border-radius:10px;padding:.8rem;'>"
-      + "<div style='font-size:.8rem;color:#555;'>" + day18T("market_bag_price", "Price per 50 kg bag") + "</div>"
-      + "<div style='font-weight:800;color:#1a6b3c;'>" + day18Money(lowBag) + " - " + day18Money(highBag) + "</div></div>"
-      + "<div style='background:#f7faf7;border-radius:10px;padding:.8rem;'>"
-      + "<div style='font-size:.8rem;color:#555;'>" + day18T("market_your_bags", "Your expected bags") + "</div>"
-      + "<div style='font-weight:800;color:#1a6b3c;'>" + b + " bags (" + t + " tons)</div></div></div>"
-      + "<div style='margin-top:.8rem;background:#e8f5ec;border-radius:10px;padding:.8rem;'>"
-      + "<div style='font-size:.8rem;color:#555;'>" + day18T("market_money", "Expected money if you sell") + "</div>"
-      + "<div style='font-weight:800;color:#1a6b3c;'>" + day18Money(lowMoney) + " - " + day18Money(highMoney) + "</div></div>"
-      + "<small style='display:block;margin-top:.7rem;color:#555;'>" + day18T("market_note", "Prices are indicative. Check the local market before selling.") + "</small>";
-    panel.innerHTML = head + best + body;
-  }
-  panel.innerHTML = head + best + "<small>" + day18T("market_offline", "Market prices need internet. Connect to see prices.") + "</small>";
-}
-if (typeof window !== "undefined" && typeof renderResults === "function" && !window.__day18hook) {
-  var _day18render = renderResults;
-  window.renderResults = function (result, calendarData) {
-    var r = _day18render.apply(this, arguments);
-    try {
-      var crop = result && result.crop;
-      var tons = result && result.prediction && result.prediction.yield_tons;
-      var tip = result && result.advice && result.advice.market_tip;
-      if (crop && tons) renderMarket(crop, tons, tip);
-    } catch (e) {}
-    return r;
-  };
-  window.__day18hook = true;
+  el.textContent = fill(
+    t('plain_template', 'Your {crop} on {ha} hectare may give about {tons} tons, which is about {bags} bags of 50 kg. This is an estimate for planning, not a promise. Weather and pests can change it.'),
+    { crop: crop, ha: Number(ha).toFixed(2), tons: tons, bags: bagsFromTons(tons) }
+  );
 }
 
-
-/* Day 19: what to do now, at the very top of results */
-function day19T(k, fb) {
-  try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; }
-}
-function day19Urgency(task) {
-  var t = String(task || "").toLowerCase();
-  if (t.indexOf("harvest") !== -1) return { key: "urg_harvest", fb: "Time to harvest", color: "#b45309" };
-  if (t.indexOf("plant") !== -1 || t.indexOf("sow") !== -1) return { key: "urg_plant", fb: "Time to plant", color: "#15803d" };
-  if (t.indexOf("spray") !== -1 || t.indexOf("fungicide") !== -1 || t.indexOf("pest") !== -1 || t.indexOf("armyworm") !== -1 || t.indexOf("weedicide") !== -1)
-    return { key: "urg_spray", fb: "Time to spray", color: "#b91c1c" };
-  if (t.indexOf("weed") !== -1) return { key: "urg_weed", fb: "Time to weed", color: "#a16207" };
-  if (t.indexOf("fertiliz") !== -1 || t.indexOf("npk") !== -1 || t.indexOf("urea") !== -1 || t.indexOf("top-dress") !== -1 || t.indexOf("apply") !== -1)
-    return { key: "urg_fert", fb: "Time to fertilise", color: "#1d4ed8" };
-  return { key: "urg_now", fb: "Do this now", color: "#1a6b3c" };
-}
-function day19CleanTip(t) {
-  return String(t || "-").replace(/^Best selling months:\s*/i, "").replace(/^Best time to sell:\s*/i, "");
-}
-function removeActionCard() {
-  var el = document.getElementById("actionCard");
-  if (el && el.parentElement) el.parentElement.removeChild(el);
-}
-function renderActionCard(crop, calendarData, marketTip) {
-  removeActionCard();
-  var section = document.getElementById("resultsSection");
-  if (!section) return;
-  var card = document.createElement("div");
-  card.id = "actionCard";
-  card.style.cssText = "background:linear-gradient(135deg,#1a6b3c,#2e8b57);color:#fff;border-radius:16px;padding:1.2rem;margin:0 0 1rem;box-shadow:0 4px 14px rgba(26,107,60,.28);";
-  var cal = calendarData && calendarData.calendar ? calendarData.calendar : null;
-  if (!cal) return;
-  var thisM = cal.this_month || {};
-  var nextM = cal.next_month || {};
-  var urg = day19Urgency(thisM.task);
-  var head = "<div style='display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;'>"
-    + "<h2 style='margin:0;font-size:1.25rem;'>" + day19T("action_title", "What to do now") + "</h2>"
-    + "<span style='background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);padding:.2rem .7rem;border-radius:20px;font-weight:800;font-size:.8rem;'>"
-    + day19T(urg.key, urg.fb) + "</span></div>";
-  var monthLine = "<div style='margin-top:.5rem;font-weight:800;font-size:1.05rem;'>"
-    + day19T("action_month_task", "Your {crop} task for {month}")
-        .replace("{crop}", crop || "").replace("{month}", thisM.month || "") + "</div>";
-  var taskLine = "<div style='margin-top:.4rem;background:rgba(255,255,255,.15);border-radius:10px;padding:.8rem;font-weight:600;'>"
-    + (thisM.task || "") + "</div>";
-  var nextLine = nextM.task
-    ? "<div style='margin-top:.6rem;font-size:.9rem;opacity:.92;'>"
-      + day19T("action_next_task", "Next month: {task}").replace("{task}", nextM.task) + "</div>"
-    : "";
-  var sellLine = marketTip
-    ? "<div style='margin-top:.6rem;font-size:.9rem;background:rgba(255,255,255,.15);border-radius:10px;padding:.6rem;'>"
-      + "<strong>" + day19T("action_sell", "Best time to sell") + ":</strong> " + day19CleanTip(marketTip) + "</div>"
-    : "";
-  card.innerHTML = head + monthLine + taskLine + nextLine + sellLine;
-  section.insertBefore(card, section.firstChild);
-}
-if (typeof window !== "undefined" && typeof renderResults === "function" && !window.__day19hook) {
-  var _day19render = renderResults;
-  window.renderResults = function (result, calendarData) {
-    var r = _day19render.apply(this, arguments);
-    try {
-      var crop = result && result.crop;
-      var tip = result && result.advice && result.advice.market_tip;
-      if (crop) renderActionCard(crop, calendarData, tip);
-    } catch (e) {}
-    return r;
-  };
-  window.__day19hook = true;
-}
-
-
-/* Day 20: saved farm profiles, one tap fills the form */
-var DAY20_KEY = "agritech_farm_profiles";
-function day20T(k, fb) {
-  try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; }
-}
-function esc20(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
-    return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m];
-  });
-}
-function loadProfiles() {
-  try {
-    var raw = localStorage.getItem(DAY20_KEY);
-    var arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch (e) { return []; }
-}
-function saveProfiles(list) {
-  try { localStorage.setItem(DAY20_KEY, JSON.stringify(list)); } catch (e) {}
-}
-function profilePanel() {
-  var existing = document.getElementById("profilePanel");
-  if (existing) return existing;
-  var form = document.getElementById("farmForm");
-  if (!form) return null;
-  var panel = document.createElement("div");
-  panel.id = "profilePanel";
-  panel.style.cssText = "background:#f0f7f2;border:1px solid #cfe3d6;border-radius:12px;padding:.9rem;margin-bottom:1.1rem;";
-  form.insertBefore(panel, form.firstChild);
-  return panel;
-}
-function renderProfiles() {
-  var panel = profilePanel();
-  if (!panel) return;
-  var list = loadProfiles();
-  var opts = '<option value="">' + (list.length ? esc20(day20T("profiles_pick", "Choose a saved farm")) : "") + '</option>';
-  list.forEach(function (p) {
-    opts += '<option value="' + esc20(p.id) + '">' + esc20(p.name) + " — " + esc20(p.crop) + " · " + esc20(p.state) + '</option>';
-  });
-  panel.innerHTML =
-    '<div style="font-weight:800;color:#1a6b3c;margin-bottom:.5rem;">' + esc20(day20T("profiles_title", "My saved farms")) + '</div>'
-    + '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">'
-    + '<select id="profileSelect" style="flex:1;min-width:170px;padding:.55rem;border-radius:10px;border:1px solid #cbd5cc;">' + opts + '</select>'
-    + '<button type="button" id="profileLoadBtn" style="padding:.55rem 1rem;font-size:.9rem;font-weight:800;background:#1a6b3c;color:#fff;border:none;border-radius:24px;cursor:pointer;">' + esc20(day20T("profiles_load", "Load farm")) + '</button>'
-    + '</div>'
-    + '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem;">'
-    + '<input id="profileName" type="text" placeholder="' + esc20(day20T("profiles_name_ph", "Name this farm")) + '" style="flex:1;min-width:140px;padding:.55rem;border-radius:10px;border:1px solid #cbd5cc;">'
-    + '<button type="button" id="profileSaveBtn" style="padding:.55rem 1rem;font-size:.9rem;font-weight:800;background:#fff;color:#1a6b3c;border:2px solid #1a6b3c;border-radius:24px;cursor:pointer;">' + esc20(day20T("profiles_save", "Save this farm")) + '</button>'
-    + '<button type="button" id="profileDelBtn" style="padding:.55rem 1rem;font-size:.9rem;font-weight:800;background:#fff;color:#b91c1c;border:2px solid #b91c1c;border-radius:24px;cursor:pointer;">' + esc20(day20T("profiles_delete", "Delete")) + '</button>'
-    + '</div>'
-    + (list.length ? "" : '<small style="display:block;margin-top:.5rem;color:#555;">' + esc20(day20T("profiles_empty", "No saved farms yet. Fill the form, then tap Save this farm.")) + '</small>');
-  var lb = document.getElementById("profileLoadBtn");
-  var sb = document.getElementById("profileSaveBtn");
-  var db = document.getElementById("profileDelBtn");
-  if (lb) lb.addEventListener("click", loadProfile);
-  if (sb) sb.addEventListener("click", saveCurrentProfile);
-  if (db) db.addEventListener("click", deleteProfile);
-}
-function loadProfile() {
-  var sel = document.getElementById("profileSelect");
-  if (!sel || !sel.value) { alert(day20T("profiles_empty", "No saved farms yet. Fill the form, then tap Save this farm.")); return; }
-  var list = loadProfiles();
-  var p = null;
-  list.forEach(function (x) { if (x.id === sel.value) p = x; });
-  if (!p) return;
-  function set(id, v) { var el = document.getElementById(id); if (el) el.value = v; }
-  set("crop", p.crop || "");
-  set("state", p.state || "");
-  set("farmSize", p.size || "");
-  set("farmUnit", p.unit || "hectare");
-  set("soilType", p.soil_type || "");
-  set("soilPh", p.soil_ph || "");
-  set("fertilizer", p.fertilizer_kg || "");
-  if (p.rainfall_mm) set("rainfall", p.rainfall_mm);
-  try { if (typeof updateSizeHelper === "function") updateSizeHelper(); } catch (e) {}
-  try { if (typeof updateBagsHelper === "function") updateBagsHelper(); } catch (e) {}
-  try { if (typeof applyDay17Static === "function") applyDay17Static(); } catch (e) {}
-  var st = document.getElementById("state");
-  if (st) { try { st.dispatchEvent(new Event("change")); } catch (e) {} }
-  alert(day20T("profiles_loaded", "Farm loaded"));
-}
-function saveCurrentProfile() {
-  function g(id) { return document.getElementById(id); }
-  var nameEl = g("profileName");
-  var name = nameEl ? nameEl.value.trim() : "";
-  if (!name) { alert(day20T("profiles_name_ph", "Name this farm")); return; }
-  var list = loadProfiles();
-  var existing = null;
-  list.forEach(function (x) { if (String(x.name).toLowerCase() === name.toLowerCase()) existing = x; });
-  var cropEl = g("crop"), stateEl = g("state"), sizeEl = g("farmSize"), unitEl = g("farmUnit");
-  var soilTypeEl = g("soilType"), soilPhEl = g("soilPh"), fertEl = g("fertilizer"), rainEl = g("rainfall");
-  var profile = {
-    id: existing ? existing.id : "pf-" + Date.now().toString(36),
-    name: name,
-    crop: cropEl ? cropEl.value : "",
-    state: stateEl ? stateEl.value : "",
-    size: sizeEl ? sizeEl.value : "",
-    unit: unitEl ? unitEl.value : "hectare",
-    soil_type: soilTypeEl ? soilTypeEl.value : "",
-    soil_ph: soilPhEl ? soilPhEl.value : "",
-    fertilizer_kg: fertEl ? fertEl.value : "",
-    rainfall_mm: rainEl ? rainEl.value : "",
-    updated_at: new Date().toISOString()
-  };
-  if (existing) {
-    list = list.map(function (x) { return x.id === existing.id ? profile : x; });
-  } else {
-    list.unshift(profile);
-  }
-  saveProfiles(list);
-  if (nameEl) nameEl.value = "";
-  renderProfiles();
-  var sel = document.getElementById("profileSelect");
-  if (sel) sel.value = profile.id;
-  alert(day20T("profiles_saved", "Farm saved"));
-}
-function deleteProfile() {
-  var sel = document.getElementById("profileSelect");
-  if (!sel || !sel.value) return;
-  var list = loadProfiles().filter(function (x) { return x.id !== sel.value; });
-  saveProfiles(list);
-  renderProfiles();
-}
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", function () { setTimeout(renderProfiles, 0); });
-} else {
-  setTimeout(renderProfiles, 0);
-}
-try {
-  if (typeof LANG !== "undefined" && LANG.setLanguage && !LANG.__day20hooked) {
-    var _d20set = LANG.setLanguage.bind(LANG);
-    LANG.setLanguage = function (code) {
-      var r = _d20set(code);
-      try { renderProfiles(); } catch (e) {}
-      return r;
-    };
-    LANG.__day20hooked = true;
-  }
-} catch (e) {}
-
-
-/* Day 21: honesty badge, example data until verified */
-function day21HT(k, fb) {
-  try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; }
-}
-function ensureHonestyBadge() {
-  var section = document.getElementById("resultsSection");
-  if (!section) return;
-  var el = document.getElementById("honestyBadge");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "honestyBadge";
-    el.style.cssText = "background:#fff7ed;border:1px solid #fdba74;color:#7c2d12;border-radius:12px;padding:.8rem 1rem;margin:0 0 1rem;font-weight:600;";
-    section.insertBefore(el, section.firstChild);
-  }
-  var badge = day21HT("indicative_badge", "Indicative example, not verified yet");
-  var note = day21HT("honesty_note", "Estimate from example data. Real farm data check is in progress.");
-  var detail = day21HT("honesty_detail", "Use for planning only. Confirm with your extension officer or market before deciding.");
-  el.innerHTML = "<div style='font-weight:800;margin-bottom:.25rem;'>&#9888;&#65039; " + badge + "</div>"
-    + "<div>" + note + "</div>"
-    + "<div style='font-weight:400;font-size:.9rem;margin-top:.25rem;'>" + detail + "</div>";
-}
-if (typeof window !== "undefined" && typeof renderResults === "function" && !window.__day21honhook) {
-  var _day21render = window.renderResults || renderResults;
-  window.renderResults = function (result, calendarData) {
-    var r = _day21render.apply(this, arguments);
-    try { ensureHonestyBadge(); } catch (e) {}
-    return r;
-  };
-  try { renderResults = window.renderResults; } catch (e) {}
-  window.__day21honhook = true;
-}
-try {
-  if (typeof LANG !== "undefined" && LANG.setLanguage && !LANG.__day21honhooked) {
-    var _d21set = LANG.setLanguage.bind(LANG);
-    LANG.setLanguage = function (code) {
-      var r = _d21set(code);
-      try { ensureHonestyBadge(); } catch (e) {}
-      return r;
-    };
-    LANG.__day21honhooked = true;
-  }
-} catch (e) {}
-
-
-/* Day 22: share, copy, download, print */
-function day22T(k, fb) {
-  try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; }
-}
-function buildShareText(result) {
-  if (!result) return document.title;
-  var crop = result.crop || "";
-  var farm = result.farm_size_ha != null ? String(result.farm_size_ha) : "";
-  var tons = result.prediction ? String(result.prediction.yield_tons) : "";
-  var tpl = day22T("share_for", "Result for {crop} on {ha} hectare, {tons} tons");
-  var line = tpl.replace("{crop}", crop).replace("{ha}", farm).replace("{tons}", tons);
-  var bags = result.prediction ? Math.round((parseFloat(tons) || 0) * 20) + " bags (50 kg)" : "";
-  var marketTip = result.advice && result.advice.market_tip ? result.advice.market_tip : "";
-  var out = line;
-  if (bags) out += "\n" + bags;
-  if (marketTip) out += "\nMarket: " + marketTip;
-  out += "\n" + window.location.href;
-  return out;
-}
-function removeShareActions() {
-  var el = document.getElementById("shareActions");
-  if (el && el.parentElement) el.parentElement.removeChild(el);
-}
-function shareActions(result) {
-  removeShareActions();
-  try { window.__day22lastResult = result; } catch (e) {}
-  var section = document.getElementById("resultsSection");
-  if (!section) return;
-  var card = document.createElement("div");
-  card.id = "shareActions";
-  card.style.cssText = "background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:.9rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:1rem 0;";
-  var title = document.createElement("div");
-  title.textContent = day22T("share_title", "Share this result");
-  title.style.cssText = "font-weight:800;color:#1a6b3c;width:100%;margin-bottom:.35rem;";
-  card.appendChild(title);
-  var btns = [
-    { id: "shareBtn", t: "share_share", fb: "Share", fn: function () { doShare(result); } },
-    { id: "copyBtn", t: "share_copy", fb: "Copy", fn: function () { doCopy(result); } },
-    { id: "downloadBtn", t: "share_download", fb: "Download", fn: function () { doDownload(result); } },
-    { id: "printBtn", t: "share_print", fb: "Print", fn: function () { window.print(); } }
-  ];
-  btns.forEach(function (b) {
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.id = b.id;
-    btn.textContent = day22T(b.t, b.fb);
-    btn.style.cssText = "padding:.55rem 1rem;font-size:.9rem;font-weight:800;background:#1a6b3c;color:#fff;border:none;border-radius:24px;cursor:pointer;";
-    if (b.id === "copyBtn" || b.id === "printBtn") {
-      btn.style.background = "#fff";
-      btn.style.color = "#1a6b3c";
-      btn.style.border = "2px solid #1a6b3c";
-    }
-    btn.addEventListener("click", b.fn);
-    card.appendChild(btn);
-  });
-  section.appendChild(card);
-}
-function doShare(result) {
-  var text = buildShareText(result);
-  var url = window.location.href;
-  if (navigator.share) {
-    navigator.share({ title: document.title, text: text, url: url }).catch(function () {});
+/* ── Results: risks, what-if, advice, calendar ─────────── */
+function renderRisks(flags) {
+  const el = $('riskContent');
+  if (!el) return;
+  if (!flags || !flags.length) {
+    el.innerHTML = '<div class="no-risk">' +
+      esc(t('no_risk', 'No risk flags detected. Your farm setup looks good!')) + '</div>';
     return;
   }
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).catch(function () {});
-  }
-  window.prompt("Copy this text", text);
+  el.innerHTML = '<ul class="risk-list">' + flags.map(r =>
+    '<li class="risk-item"><span>!</span><span>' + esc(r) + '</span></li>'
+  ).join('') + '</ul>';
 }
-function doCopy(result) {
-  var text = buildShareText(result);
-  var btn = document.getElementById("copyBtn");
-  function done() {
-    if (btn) {
-      btn.textContent = day22T("share_copied", "Copied");
-      setTimeout(function () { btn.textContent = day22T("share_copy", "Copy"); }, 1600);
+
+function renderAdvice(advice) {
+  const el = $('adviceGrid');
+  if (!el || !advice) return;
+  const items = [
+    ['adv_season',     'Planting Season', advice.season],
+    ['adv_spacing',    'Spacing',         advice.spacing],
+    ['adv_harvest',    'Harvest',         advice.harvest],
+    ['adv_fertilizer', 'Fertilizer',      advice.fertilizer_tip],
+    ['adv_water',      'Water',           advice.water],
+    ['adv_soil',       'Soil',            advice.soil],
+    ['adv_disease',    'Disease Watch',   advice.disease_watch],
+    ['adv_market',     'Market Timing',   advice.market_tip]
+  ];
+  el.innerHTML = items.map(item =>
+    '<div class="advice-item">' +
+      '<span class="advice-label">' + esc(t(item[0], item[1])) + '</span>' +
+      '<span class="advice-value">' + esc(item[2] || '-') + '</span>' +
+    '</div>'
+  ).join('');
+}
+
+function renderCalendar(cal) {
+  const el = $('calendarContent');
+  if (!el || !cal) return;
+  const last = cal.last_month || {}, now = cal.this_month || {}, next = cal.next_month || {};
+  el.innerHTML =
+    '<div class="calendar-grid">' +
+      '<div class="cal-item past">' +
+        '<span class="cal-month">' + esc(last.month) + '</span>' +
+        '<p class="cal-task">' + esc(last.task) + '</p></div>' +
+      '<div class="cal-item current">' +
+        '<span class="cal-now-badge">' + esc(t('now_badge', 'This Month')) + '</span>' +
+        '<span class="cal-month">' + esc(now.month) + '</span>' +
+        '<p class="cal-task">' + esc(now.task) + '</p></div>' +
+      '<div class="cal-item next">' +
+        '<span class="cal-month">' + esc(next.month) + '</span>' +
+        '<p class="cal-task">' + esc(next.task) + '</p></div>' +
+    '</div>';
+}
+
+/* ── Results: what to do now ────────────────────────────── */
+function urgencyKey(task) {
+  const s = String(task || '').toLowerCase();
+  if (s.indexOf('harvest') !== -1) return ['urg_harvest', 'Time to harvest'];
+  if (s.indexOf('plant') !== -1 || s.indexOf('sow') !== -1) return ['urg_plant', 'Time to plant'];
+  if (['spray', 'fungicide', 'pest', 'armyworm', 'weedicide'].some(w => s.indexOf(w) !== -1))
+    return ['urg_spray', 'Time to spray'];
+  if (s.indexOf('weed') !== -1) return ['urg_weed', 'Time to weed'];
+  if (['fertiliz', 'npk', 'urea', 'top-dress', 'apply'].some(w => s.indexOf(w) !== -1))
+    return ['urg_fert', 'Time to fertilise'];
+  return ['urg_now', 'Do this now'];
+}
+
+function renderActionCard(crop, cal, tip) {
+  removeEl('actionCard');
+  const section = $('resultsSection');
+  if (!section || !cal) return;
+  const now = cal.this_month || {}, next = cal.next_month || {};
+  const urg = urgencyKey(now.task);
+
+  const card = document.createElement('div');
+  card.id = 'actionCard';
+  card.style.cssText = 'background:linear-gradient(135deg,#1a6b3c,#2e8b57);color:#fff;border-radius:16px;padding:1.2rem;margin:0 0 1rem;box-shadow:0 4px 14px rgba(26,107,60,.28);';
+  card.innerHTML =
+    '<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">' +
+      '<h2 style="margin:0;font-size:1.25rem;">' + esc(t('action_title', 'What to do now')) + '</h2>' +
+      '<span style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);padding:.2rem .7rem;border-radius:20px;font-weight:800;font-size:.8rem;">' +
+        esc(t(urg[0], urg[1])) + '</span>' +
+    '</div>' +
+    '<div style="margin-top:.5rem;font-weight:800;font-size:1.05rem;">' +
+      esc(fill(t('action_month_task', 'Your {crop} task for {month}'), { crop: crop, month: now.month || '' })) +
+    '</div>' +
+    '<div style="margin-top:.4rem;background:rgba(255,255,255,.15);border-radius:10px;padding:.8rem;font-weight:600;">' +
+      esc(now.task || '') + '</div>' +
+    (next.task ? '<div style="margin-top:.6rem;font-size:.9rem;opacity:.92;">' +
+      esc(fill(t('action_next_task', 'Next month: {task}'), { task: next.task })) + '</div>' : '') +
+    (tip ? '<div style="margin-top:.6rem;font-size:.9rem;background:rgba(255,255,255,.15);border-radius:10px;padding:.6rem;">' +
+      '<strong>' + esc(t('action_sell', 'Best time to sell')) + ':</strong> ' + esc(cleanTip(tip)) + '</div>' : '');
+
+  section.insertBefore(card, section.firstChild);
+}
+
+/* ── Results: market timing and money ───────────────────── */
+function renderMarket(crop, tons, tip) {
+  removeEl('marketPanel');
+  const anchor = $('yieldFarm');
+  const card = (anchor && anchor.closest('.card')) ||
+               ($('resultsSection') && $('resultsSection').firstElementChild);
+  if (!card || !card.parentElement) return;
+
+  const panel = document.createElement('div');
+  panel.id = 'marketPanel';
+  panel.style.cssText = 'background:#fff;border-radius:14px;padding:1.2rem;margin:1rem 0;box-shadow:0 2px 10px rgba(0,0,0,.08);';
+  card.parentElement.insertBefore(panel, card.nextSibling);
+
+  const bags = bagsFromTons(tons);
+  const head = '<h3 style="margin:0 0 .6rem;color:#1a6b3c;">' + esc(t('market_title', 'Market timing and money')) + '</h3>';
+  const best = '<div style="margin-bottom:.8rem;font-weight:700;">' +
+    esc(t('market_best', 'Best selling months')) + ': ' + esc(cleanTip(tip)) + '</div>';
+
+  const paint = range => {
+    if (!range) {
+      panel.innerHTML = head + best + '<small>' + esc(t('market_offline', 'Market prices need internet. Connect to see prices.')) + '</small>';
+      return;
     }
-  }
+    const lowBag = range[0] / 20, highBag = range[1] / 20;
+    panel.innerHTML = head + best +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;">' +
+        '<div style="background:#f7faf7;border-radius:10px;padding:.8rem;">' +
+          '<div style="font-size:.8rem;color:#555;">' + esc(t('market_bag_price', 'Price per 50 kg bag')) + '</div>' +
+          '<div style="font-weight:800;color:#1a6b3c;">' + naira(lowBag) + ' to ' + naira(highBag) + '</div></div>' +
+        '<div style="background:#f7faf7;border-radius:10px;padding:.8rem;">' +
+          '<div style="font-size:.8rem;color:#555;">' + esc(t('market_your_bags', 'Your expected bags')) + '</div>' +
+          '<div style="font-weight:800;color:#1a6b3c;">' + bags + ' bags (' + esc(tons) + ' tons)</div></div>' +
+      '</div>' +
+      '<div style="margin-top:.8rem;background:#e8f5ec;border-radius:10px;padding:.8rem;">' +
+        '<div style="font-size:.8rem;color:#555;">' + esc(t('market_money', 'Expected money if you sell')) + '</div>' +
+        '<div style="font-weight:800;color:#1a6b3c;">' + naira(bags * lowBag) + ' to ' + naira(bags * highBag) + '</div></div>' +
+      '<small style="display:block;margin-top:.7rem;color:#555;">' + esc(t('market_note', 'Prices are indicative. Check the local market before selling.')) + '</small>';
+  };
+
+  paint(null);
+  fetch(API + '/api/advice/' + encodeURIComponent(crop), { signal: AbortSignal.timeout(15000) })
+    .then(r => r.json())
+    .then(d => {
+      const pr = d && d.success && d.advice && d.advice.price_range_ngn_per_ton;
+      paint(pr ? [pr.low, pr.high] : (FALLBACK_PRICES[crop] || null));
+    })
+    .catch(() => paint(FALLBACK_PRICES[crop] || null));
+}
+
+/* ── Results: estimate notice ───────────────────────────── */
+function renderHonesty() {
+  removeEl('honestyBadge');
+  const section = $('resultsSection');
+  if (!section) return;
+  const el = document.createElement('div');
+  el.id = 'honestyBadge';
+  el.style.cssText = 'background:#fff7ed;border:1px solid #fdba74;color:#7c2d12;border-radius:12px;padding:.8rem 1rem;margin:0 0 1rem;font-weight:600;';
+  el.innerHTML =
+    '<div style="font-weight:800;margin-bottom:.25rem;">&#9888;&#65039; ' +
+      esc(t('indicative_badge', 'Indicative example, not verified yet')) + '</div>' +
+    '<div>' + esc(t('honesty_note', 'Estimate from example data. Real farm data check is in progress.')) + '</div>' +
+    '<div style="font-weight:400;font-size:.9rem;margin-top:.25rem;">' +
+      esc(t('honesty_detail', 'Use for planning only. Confirm with your extension officer or market before deciding.')) + '</div>';
+  section.insertBefore(el, section.firstChild);
+}
+
+/* ── Results: share, copy, download, print ──────────────── */
+function shareText(result) {
+  const tons = result.prediction.yield_tons;
+  const lines = [
+    fill(t('share_for', 'Result for {crop} on {ha} hectare, {tons} tons'),
+         { crop: result.crop, ha: result.farm_size_ha, tons: tons }),
+    bagsFromTons(tons) + ' bags (50 kg)'
+  ];
+  const tip = result.advice && result.advice.market_tip;
+  if (tip) lines.push('Market: ' + cleanTip(tip));
+  lines.push(window.location.href);
+  return lines.join('\n');
+}
+
+function doCopy(result) {
+  const text = shareText(result);
+  const btn = $('copyBtn');
+  const done = () => {
+    if (!btn) return;
+    btn.textContent = t('share_copied', 'Copied');
+    setTimeout(() => { btn.textContent = t('share_copy', 'Copy'); }, 1600);
+  };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done).catch(function () {
-      window.prompt("Copy this text", text);
+    navigator.clipboard.writeText(text).then(done).catch(() => {
+      window.prompt('Copy this text', text);
       done();
     });
     return;
   }
-  window.prompt("Copy this text", text);
+  window.prompt('Copy this text', text);
   done();
 }
+
+function doShare(result) {
+  if (navigator.share) {
+    navigator.share({ title: document.title, text: shareText(result) }).catch(() => {});
+    return;
+  }
+  doCopy(result);
+}
+
 function doDownload(result) {
-  if (!result) return;
-  var crop = result.crop || "";
-  var ha = result.farm_size_ha != null ? String(result.farm_size_ha) : "";
-  var tons = result.prediction ? String(result.prediction.yield_tons) : "";
-  var bags = result.prediction ? String(Math.round((parseFloat(tons) || 0) * 20)) : "";
-  var lines = [];
-  lines.push("AgriTech AI, Farmer Advisory Platform, Day 22");
-  lines.push(day22T("share_for", "Result for {crop} on {ha} hectare, {tons} tons").replace("{crop}", crop).replace("{ha}", ha).replace("{tons}", tons));
-  lines.push("Farm: " + ha + " ha | " + tons + " tons (" + bags + " bags of 50 kg)");
-  var tip = result.advice && result.advice.market_tip ? result.advice.market_tip : "";
-  if (tip) lines.push("Market: " + tip);
-  lines.push("Note: Iseyin Oyo cassava field point, 60 acres TME 419 May/June 2025 rain-fed, held as Oyo and South-West price indicator in review, not verified live.");
+  const tons = result.prediction.yield_tons;
+  const lines = [
+    'AgriTech AI, Farmer Advisory Platform',
+    fill(t('share_for', 'Result for {crop} on {ha} hectare, {tons} tons'),
+         { crop: result.crop, ha: result.farm_size_ha, tons: tons }),
+    'Farm: ' + result.farm_size_ha + ' ha | ' + tons + ' tons (' + bagsFromTons(tons) + ' bags of 50 kg)'
+  ];
+  const tip = result.advice && result.advice.market_tip;
+  if (tip) lines.push('Market: ' + cleanTip(tip));
+  lines.push('Estimate for planning only. Confirm with your extension officer or local market.');
   lines.push(window.location.href);
-  var body = lines.join("\n");
-  var blob = new Blob([body], { type: "text/plain;charset=utf-8" });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement("a");
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
   a.href = url;
-  a.download = "agritech-" + (crop || "result") + ".txt";
+  a.download = 'agritech-' + (result.crop || 'result') + '.txt';
   document.body.appendChild(a);
   a.click();
-  setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 500);
 }
-if (typeof window !== "undefined" && typeof renderResults === "function" && !window.__day22sharehook) {
-  var _day22render = renderResults;
-  window.renderResults = function (result, calendarData) {
-    var r = _day22render.apply(this, arguments);
-    try { shareActions(result); } catch (e) {}
-    return r;
-  };
-  try { renderResults = window.renderResults; } catch (e) {}
-  window.__day22sharehook = true;
-}
-try {
-  if (typeof LANG !== "undefined" && LANG.setLanguage && !LANG.__day22sharehooked) {
-    var _d22set = LANG.setLanguage.bind(LANG);
-    LANG.setLanguage = function (code) {
-      var r = _d22set(code);
-      try {
-        var res = window.__day22lastResult;
-        if (res) shareActions(res);
-      } catch (e) {}
-      return r;
-    };
-    LANG.__day22sharehooked = true;
-  }
-} catch (e) {}
 
+function renderShare(result) {
+  removeEl('shareActions');
+  const section = $('resultsSection');
+  if (!section) return;
 
-/* Day 23: monthly task checklist with ticks, offline on phone */
-function day23T(k, fb) {
-  try { var v = LANG.t(k); return (v && v !== k) ? v : fb; } catch (e) { return fb; }
+  const card = document.createElement('div');
+  card.id = 'shareActions';
+  card.style.cssText = 'background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:.9rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:1rem 0;';
+  card.innerHTML =
+    '<div style="font-weight:800;color:#1a6b3c;width:100%;margin-bottom:.35rem;">' +
+      esc(t('share_title', 'Share this result')) + '</div>' +
+    '<button type="button" id="shareBtn" style="' + BTN_PRIMARY + '">' + esc(t('share_share', 'Share')) + '</button>' +
+    '<button type="button" id="copyBtn" style="' + BTN_OUTLINE + '">' + esc(t('share_copy', 'Copy')) + '</button>' +
+    '<button type="button" id="downloadBtn" style="' + BTN_PRIMARY + '">' + esc(t('share_download', 'Download')) + '</button>' +
+    '<button type="button" id="printBtn" style="' + BTN_OUTLINE + '">' + esc(t('share_print', 'Print')) + '</button>';
+
+  card.querySelector('#shareBtn').addEventListener('click', () => doShare(result));
+  card.querySelector('#copyBtn').addEventListener('click', () => doCopy(result));
+  card.querySelector('#downloadBtn').addEventListener('click', () => doDownload(result));
+  card.querySelector('#printBtn').addEventListener('click', () => window.print());
+
+  section.appendChild(card);
 }
-function esc23(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
-    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
-  });
-}
+
+/* ── Results: monthly task checklist ────────────────────── */
+let checklistState = null;
+
 function checkKey(crop, month) {
-  return "agritech_checks_" + crop + "_" + month;
+  return CHECK_PREFIX + crop + '_' + month;
 }
-function loadChecks(crop, month) {
+
+function loadChecks(crop, month, count) {
+  let arr = [];
   try {
-    var raw = localStorage.getItem(checkKey(crop, month));
-    var arr = raw ? JSON.parse(raw) : null;
-    if (Array.isArray(arr)) return arr;
-  } catch (e) {}
-  return [false, false, false];
+    const raw = localStorage.getItem(checkKey(crop, month));
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed)) arr = parsed;
+  } catch (e) { /* start fresh */ }
+  while (arr.length < count) arr.push(false);
+  return arr.slice(0, count);
 }
+
 function saveChecks(crop, month, arr) {
   try { localStorage.setItem(checkKey(crop, month), JSON.stringify(arr)); } catch (e) {}
 }
-function buildTasks(calendarData, tip) {
-  var cal = calendarData && calendarData.calendar ? calendarData.calendar : null;
-  if (!cal) return [];
-  var tasks = [];
-  if (cal.this_month && cal.this_month.task) tasks.push(cal.this_month.task);
+
+function buildChecklistState(crop, cal, tip) {
+  if (!cal || !cal.this_month) return null;
+  const tasks = [];
+  if (cal.this_month.task) tasks.push(cal.this_month.task);
   if (cal.next_month && cal.next_month.task) tasks.push(cal.next_month.task);
-  if (tip) tasks.push(tip.replace(/^Best selling months:\s*/i, "").replace(/^Best time to sell:\s*/i, ""));
-  return tasks.slice(0, 3);
+  if (tip) tasks.push(cleanTip(tip));
+  return {
+    crop: crop,
+    month: cal.this_month.month || 'unknown',
+    tasks: tasks.slice(0, 3)
+  };
 }
-function removeChecklist() {
-  var el = document.getElementById("checkPanel");
-  if (el && el.parentElement) el.parentElement.removeChild(el);
-}
-function renderChecklist(crop, calendarData, tip) {
-  removeChecklist();
-  try { window.__day23ctx = { crop: crop, cal: calendarData, tip: tip }; } catch (e) {}
-  var section = document.getElementById("resultsSection");
-  if (!section || !crop) return;
-  var cal = calendarData && calendarData.calendar ? calendarData.calendar : null;
-  if (!cal) return;
-  var month = cal.month || "";
-  var tasks = buildTasks(calendarData, tip);
-  if (!tasks.length) return;
-  var checks = loadChecks(crop, month);
-  while (checks.length < tasks.length) checks.push(false);
-  checks = checks.slice(0, tasks.length);
-  var done = checks.filter(function (x) { return x; }).length;
-  var card = document.createElement("div");
-  card.id = "checkPanel";
-  card.style.cssText = "background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin:1rem 0;";
-  var rows = "";
-  tasks.forEach(function (t, i) {
-    var c = checks[i] ? "checked" : "";
-    rows += '<label style="display:flex;gap:.6rem;align-items:flex-start;padding:.55rem;border:1px solid #eef2ee;border-radius:10px;margin:.45rem 0;cursor:pointer;background:' + (checks[i] ? "#f0fdf4" : "#fff") + ';">'
-      + '<input type="checkbox" data-i="' + i + '" ' + c + ' style="width:20px;height:20px;margin-top:2px;accent-color:#1a6b3c;">'
-      + '<span style="flex:1;">' + esc23(t) + (checks[i] ? ' <strong style="color:#1a6b3c;">' + esc23(day23T("check_done", "Done")) + '</strong>' : "") + '</span></label>';
-  });
-  var pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
-  var bar = '<div style="background:#eef2ee;border-radius:999px;height:10px;overflow:hidden;margin:.6rem 0;">'
-    + '<div style="height:100%;width:' + pct + '%;background:#1a6b3c;"></div></div>';
+
+function renderChecklist(state) {
+  removeEl('checkPanel');
+  checklistState = state;
+  const section = $('resultsSection');
+  if (!section || !state || !state.tasks.length) return;
+
+  const crop = state.crop, month = state.month, tasks = state.tasks;
+  const checks = loadChecks(crop, month, tasks.length);
+  const done = checks.filter(Boolean).length;
+  const pct = Math.round((done / tasks.length) * 100);
+
+  const rows = tasks.map((task, i) =>
+    '<label style="display:flex;gap:.6rem;align-items:flex-start;padding:.55rem;border:1px solid #eef2ee;border-radius:10px;margin:.45rem 0;cursor:pointer;background:' +
+      (checks[i] ? '#f0fdf4' : '#fff') + ';">' +
+      '<input type="checkbox" data-i="' + i + '"' + (checks[i] ? ' checked' : '') +
+        ' style="width:20px;height:20px;margin-top:2px;accent-color:#1a6b3c;">' +
+      '<span style="flex:1;">' + esc(task) +
+        (checks[i] ? ' <strong style="color:#1a6b3c;">' + esc(t('check_done', 'Done')) + '</strong>' : '') +
+      '</span></label>'
+  ).join('');
+
+  const card = document.createElement('div');
+  card.id = 'checkPanel';
+  card.style.cssText = 'background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin:1rem 0;';
   card.innerHTML =
-    '<div style="font-weight:800;color:#1a6b3c;">' + esc23(day23T("check_title", "Tasks for this month")) + '</div>'
-    + '<div style="font-size:.9rem;color:#555;margin:.25rem 0 .3rem;">' + esc23(day23T("check_tick_first", "Tick tasks as you finish them")) + '</div>'
-    + bar
-    + '<div style="font-size:.9rem;font-weight:700;margin-bottom:.3rem;">' + esc23(day23T("check_progress", "{done} of {total} done").replace("{done}", done).replace("{total}", tasks.length)) + '</div>'
-    + rows
-    + '<div style="margin-top:.6rem;"><button type="button" id="checkResetBtn" style="padding:.45rem 1rem;font-size:.85rem;font-weight:800;background:#fff;color:#b91c1c;border:2px solid #b91c1c;border-radius:24px;cursor:pointer;">' + esc23(day23T("check_reset", "Reset")) + '</button></div>';
-  section.appendChild(card);
-  card.querySelectorAll('input[type="checkbox"]').forEach(function (box) {
-    box.addEventListener("change", function () {
-      var idx = parseInt(box.getAttribute("data-i"), 10);
-      var cur = loadChecks(crop, month);
-      cur[idx] = box.checked;
+    '<div style="font-weight:800;color:#1a6b3c;">' + esc(t('check_title', 'Tasks for this month')) + '</div>' +
+    '<div style="font-size:.9rem;color:#555;margin:.25rem 0 .3rem;">' + esc(t('check_tick_first', 'Tick tasks as you finish them')) + '</div>' +
+    '<div style="background:#eef2ee;border-radius:999px;height:10px;overflow:hidden;margin:.6rem 0;">' +
+      '<div style="height:100%;width:' + pct + '%;background:#1a6b3c;"></div></div>' +
+    '<div style="font-size:.9rem;font-weight:700;margin-bottom:.3rem;">' +
+      esc(fill(t('check_progress', '{done} of {total} done'), { done: done, total: tasks.length })) + '</div>' +
+    rows +
+    '<div style="margin-top:.6rem;"><button type="button" id="checkResetBtn" style="' + BTN_DANGER + '">' +
+      esc(t('check_reset', 'Reset')) + '</button></div>';
+
+  card.querySelectorAll('input[type="checkbox"]').forEach(box => {
+    box.addEventListener('change', () => {
+      const i = Number(box.getAttribute('data-i'));
+      const cur = loadChecks(crop, month, tasks.length);
+      cur[i] = box.checked;
       saveChecks(crop, month, cur);
-      renderChecklist(crop, calendarData, tip);
+      renderChecklist(state);
     });
   });
-  var rb = document.getElementById("checkResetBtn");
-  if (rb) rb.addEventListener("click", function () {
-    saveChecks(crop, month, [false, false, false]);
-    renderChecklist(crop, calendarData, tip);
+  card.querySelector('#checkResetBtn').addEventListener('click', () => {
+    saveChecks(crop, month, tasks.map(() => false));
+    renderChecklist(state);
   });
+
+  section.appendChild(card);
 }
-/* language refresh for checklist */
-try {
-  if (typeof LANG !== "undefined" && LANG.setLanguage && !LANG.__day23hooked) {
-    var _d23set = LANG.setLanguage.bind(LANG);
-    LANG.setLanguage = function (code) {
-      var r = _d23set(code);
-      try {
-        var ctx = window.__day23ctx;
-        if (ctx && ctx.crop) renderChecklist(ctx.crop, ctx.cal, ctx.tip);
-      } catch (e) {}
-      return r;
-    };
-    LANG.__day23hooked = true;
+
+/* ── Saved farms ────────────────────────────────────────── */
+function loadProfiles() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(PROFILE_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+function storeProfiles(list) {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function renderProfiles() {
+  const form = $('farmForm');
+  if (!form) return;
+  let panel = $('profilePanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'profilePanel';
+    panel.style.cssText = 'background:#f0f7f2;border:1px solid #cfe3d6;border-radius:12px;padding:.9rem;margin-bottom:1.1rem;';
+    form.insertBefore(panel, form.firstChild);
   }
-} catch (e) {}
-if (typeof window !== "undefined" && typeof renderResults === "function" && !window.__day23checkhook) {
-  var _day23render = renderResults;
-  window.renderResults = function (result, calendarData) {
-    var r = _day23render.apply(this, arguments);
-    try {
-      var crop = result && result.crop;
-      var tip = result && result.advice && result.advice.market_tip;
-      if (crop) renderChecklist(crop, calendarData, tip);
-    } catch (e) {}
-    return r;
-  };
-  try { renderResults = window.renderResults; } catch (e) {}
-  window.__day23checkhook = true;
+
+  const list = loadProfiles();
+  const options = list.map(p =>
+    '<option value="' + esc(p.id) + '">' + esc(p.name) + ' · ' + esc(p.crop) + ' · ' + esc(p.state) + '</option>'
+  ).join('');
+
+  panel.innerHTML =
+    '<div style="font-weight:800;color:#1a6b3c;margin-bottom:.5rem;">' + esc(t('profiles_title', 'My saved farms')) + '</div>' +
+    '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">' +
+      '<select id="profileSelect" style="flex:1;min-width:170px;padding:.55rem;border-radius:10px;border:1px solid #cbd5cc;">' +
+        '<option value="">' + esc(t('profiles_pick', 'Choose a saved farm')) + '</option>' + options +
+      '</select>' +
+      '<button type="button" id="profileLoadBtn" style="' + BTN_PRIMARY + '">' + esc(t('profiles_load', 'Load farm')) + '</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem;">' +
+      '<input id="profileName" type="text" placeholder="' + esc(t('profiles_name_ph', 'Name this farm')) + '" ' +
+        'style="flex:1;min-width:140px;padding:.55rem;border-radius:10px;border:1px solid #cbd5cc;">' +
+      '<button type="button" id="profileSaveBtn" style="' + BTN_OUTLINE + '">' + esc(t('profiles_save', 'Save this farm')) + '</button>' +
+      '<button type="button" id="profileDelBtn" style="' + BTN_DANGER + '">' + esc(t('profiles_delete', 'Delete')) + '</button>' +
+    '</div>' +
+    (list.length ? '' :
+      '<small style="display:block;margin-top:.5rem;color:#555;">' +
+        esc(t('profiles_empty', 'No saved farms yet. Fill the form, then tap Save this farm.')) + '</small>');
+
+  panel.querySelector('#profileLoadBtn').addEventListener('click', loadProfile);
+  panel.querySelector('#profileSaveBtn').addEventListener('click', saveCurrentProfile);
+  panel.querySelector('#profileDelBtn').addEventListener('click', deleteProfile);
 }
+
+function loadProfile() {
+  const sel = $('profileSelect');
+  const p = sel && loadProfiles().find(x => x.id === sel.value);
+  if (!p) {
+    alert(t('profiles_empty', 'No saved farms yet. Fill the form, then tap Save this farm.'));
+    return;
+  }
+  setVal('crop', p.crop);
+  setVal('farmSize', p.size);
+  setVal('farmUnit', p.unit || 'hectare');
+  setVal('soilType', p.soil_type);
+  setVal('soilPh', p.soil_ph);
+  setVal('fertilizer', p.fertilizer_kg);
+  setVal('state', p.state);
+  onStateChange(p.state).then(() => {
+    if (p.rainfall_mm) setVal('rainfall', p.rainfall_mm);
+  });
+  updateSizeHelper();
+  updateBagsHelper();
+  alert(t('profiles_loaded', 'Farm loaded'));
+}
+
+function saveCurrentProfile() {
+  const nameEl = $('profileName');
+  const name = nameEl ? nameEl.value.trim() : '';
+  if (!name) {
+    alert(t('profiles_name_ph', 'Name this farm'));
+    return;
+  }
+  const list = loadProfiles();
+  const existing = list.find(x => String(x.name).toLowerCase() === name.toLowerCase());
+  const val = id => ($(id) ? $(id).value : '');
+  const profile = {
+    id: existing ? existing.id : 'pf-' + Date.now().toString(36),
+    name: name,
+    crop: val('crop'),
+    state: val('state'),
+    size: val('farmSize'),
+    unit: val('farmUnit') || 'hectare',
+    soil_type: val('soilType'),
+    soil_ph: val('soilPh'),
+    fertilizer_kg: val('fertilizer'),
+    rainfall_mm: val('rainfall'),
+    updated_at: new Date().toISOString()
+  };
+  const next = existing
+    ? list.map(x => (x.id === existing.id ? profile : x))
+    : [profile].concat(list);
+  storeProfiles(next);
+  if (nameEl) nameEl.value = '';
+  renderProfiles();
+  const sel = $('profileSelect');
+  if (sel) sel.value = profile.id;
+  alert(t('profiles_saved', 'Farm saved'));
+}
+
+function deleteProfile() {
+  const sel = $('profileSelect');
+  if (!sel || !sel.value) return;
+  storeProfiles(loadProfiles().filter(x => x.id !== sel.value));
+  renderProfiles();
+}
+
+/* ── Main results renderer ──────────────────────────────── */
+let lastRender = null;
+
+function renderResults(result, calendarData, opts) {
+  const scroll = !(opts && opts.scroll === false);
+  const crop = result.crop;
+  const farmHa = result.farm_size_ha;
+  const pred = result.prediction;
+  const advice = result.advice || {};
+  const cal = calendarData && calendarData.calendar ? calendarData.calendar : null;
+  const tip = advice.market_tip;
+
+  lastRender = { result: result, calendarData: calendarData };
+
+  setText('resultCrop', crop);
+  setText('yieldTons', pred.yield_tons);
+  setText('yieldFarm', farmHa + ' ha');
+  setText('incomeLow',  naira(pred.income_low_ngn));
+  setText('incomeMid',  naira(pred.income_mid_ngn));
+  setText('incomeHigh', naira(pred.income_high_ngn));
+
+  renderPlainResult(crop, farmHa, pred.yield_tons);
+  renderRisks(result.risk_flags);
+
+  const wi = result.what_if || {};
+  setText('whatifCurrent', pred.yield_tons + 't');
+  setText('whatifBest', (wi.yield_tons != null ? wi.yield_tons : pred.yield_tons) + 't');
+  setText('whatifUplift', '+' + (wi.uplift_percent || 0) + '% ' +
+    t('uplift_text', 'potential uplift with better inputs'));
+
+  renderAdvice(advice);
+  renderCalendar(cal);
+  renderMarket(crop, pred.yield_tons, tip);
+  renderActionCard(crop, cal, tip);
+  renderHonesty();
+  renderShare(result);
+  renderChecklist(buildChecklistState(crop, cal, tip));
+
+  show('resultsSection');
+  hide('errorSection');
+  if (scroll) {
+    const sec = $('resultsSection');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+/* ── Form submit ────────────────────────────────────────── */
+async function onSubmit(e) {
+  e.preventDefault();
+
+  const rawSize = $('farmSize') ? $('farmSize').value : '';
+  const data = {
+    crop:          $('crop').value,
+    state:         $('state').value,
+    farm_size_ha:  farmUnitToHa(rawSize, currentUnit()),
+    rainfall_mm:   parseFloat($('rainfall').value),
+    soil_ph:       parseFloat($('soilPh').value),
+    fertilizer_kg: parseFloat($('fertilizer').value) || 0,
+    improved_seeds: checkedValue('improved_seeds') === 'true',
+    irrigation:     checkedValue('irrigation') === 'true'
+  };
+
+  const errors = validateForm(data);
+  if (errors.length) { showError(errors.join(' ')); return; }
+  if (!confirmFarm(data, rawSize)) return;
+
+  setLoading(true);
+  try {
+    const [pRes, cRes] = await Promise.all([
+      fetch(API + '/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(60000)
+      }),
+      fetch(API + '/api/calendar/' + encodeURIComponent(data.crop),
+            { signal: AbortSignal.timeout(60000) })
+    ]);
+    const pJson = await pRes.json();
+    const cJson = await cRes.json();
+
+    if (!pJson.success) {
+      showError(pJson.error || t('err_server', 'The AI server is warming up. Please wait 30 seconds and try again.'));
+      return;
+    }
+    renderResults(pJson.result, cJson);
+  } catch (err) {
+    showError(t('err_server', 'The AI server is warming up. Please wait 30 seconds and try again.'));
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ── Language switching ─────────────────────────────────── */
+function refreshForLanguage() {
+  applyPlaceholders();
+  applyStaticLabels();
+  updateSizeHelper();
+  updateBagsHelper();
+  paintStatus();
+  renderProfiles();
+  if (lastRender) renderResults(lastRender.result, lastRender.calendarData, { scroll: false });
+}
+
+function wireLanguageSwitch() {
+  if (typeof LANG === 'undefined' || !LANG.setLanguage) return;
+  const original = LANG.setLanguage.bind(LANG);
+  LANG.setLanguage = function (code) {
+    original(code);
+    refreshForLanguage();
+  };
+}
+
+/* ── Initialise ─────────────────────────────────────────── */
+function init() {
+  LANG.init();
+  wireLanguageSwitch();
+  applyPlaceholders();
+  applyStaticLabels();
+  wireSoilType();
+
+  const form = $('farmForm');
+  if (form) form.addEventListener('submit', onSubmit);
+
+  const state = $('state');
+  if (state) state.addEventListener('change', function () { onStateChange(this.value); });
+
+  const size = $('farmSize');
+  if (size) size.addEventListener('input', updateSizeHelper);
+  const unit = $('farmUnit');
+  if (unit) unit.addEventListener('change', updateSizeHelper);
+  const fert = $('fertilizer');
+  if (fert) fert.addEventListener('input', updateBagsHelper);
+
+  updateSizeHelper();
+  updateBagsHelper();
+  renderProfiles();
+  checkServerStatus();
+}
+
+init();
