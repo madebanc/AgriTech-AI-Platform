@@ -1,0 +1,14 @@
+[
+  {
+    "id": "e4e188bd",
+    "farmer_name": "Daniel",
+    "farm_name": "Test Plot",
+    "crop": "Cassava",
+    "activity_type": "weeded",
+    "activity_date": "2026-11-16",
+    "quantity": "north half",
+    "notes": "test run",
+    "source": "online",
+    "created_at": "2026-11-16T10:57:47.932710Z"
+  }
+]
