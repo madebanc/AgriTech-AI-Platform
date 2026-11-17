@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriTech AI — Farm Journal</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .journal-wrap { max-width: 860px; margin: 0 auto; padding: 1rem; }
+    .card { background: #fff; border-radius: 14px; padding: 1.2rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+    .card h2 { margin-top: 0; color: #1a6b3c; }
+    label { display: block; font-weight: 700; margin: .7rem 0 .3rem; }
+    input, select, textarea { width: 100%; padding: .65rem; border-radius: 10px; border: 1px solid #cbd5cc; font-size: 1rem; }
+    textarea { min-height: 80px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+    .btn { display: inline-block; background: #1a6b3c; color: #fff; border: none; padding: .7rem 1.2rem; border-radius: 24px; font-weight: 800; cursor: pointer; margin-top: .9rem; margin-right: .6rem; }
+    .btn.secondary { background: #fff; color: #1a6b3c; border: 2px solid #1a6b3c; }
+    .pill { display: inline-block; background: #e8f5ec; color: #1a6b3c; padding: .3rem .8rem; border-radius: 20px; font-weight: 700; margin: .2rem; }
+    .entry { border-left: 5px solid #1a6b3c; padding: .8rem 1rem; background: #f7faf7; border-radius: 10px; margin: .7rem 0; }
+    .entry small { color: #555; }
+    .status-dot { font-weight: 800; }
+    .footer { text-align: center; padding: 2rem 1rem; background: #1a6b3c; color: #fff; margin-top: 2rem; }
+    .footer-sub { opacity: .85; }
+  </style>
+  <!-- PWA support -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1a6b3c" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AgriTech AI" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+</head>
+<body>
+  <header style="background:#1a6b3c;color:#fff;padding:1.2rem;text-align:center;">
+    <h1 style="margin:0;">📓 Farm Journal</h1>
+    <p style="margin:.3rem 0 0;opacity:.9;">Save each farm once. Find it anytime, online or offline.</p>
+    <p>
+      <a href="index.html" style="color:#fff;">Yield Predictor</a> ·
+      <a href="analytics.html" style="color:#fff;">Analytics</a> ·
+      <a href="disease.html" style="color:#fff;">Disease Guide</a> ·
+      <strong>Journal</strong>
+    </p>
+  </header>
+
+  <main class="journal-wrap">
+    <div class="card">
+      <h2>Add a farm</h2>
+      <p id="syncStatus">Checking connection…</p>
+      <div id="statPills"></div>
+      <label for="farmerName">Farmer name</label>
+      <input id="farmerName" placeholder="Example: Daniel Oyanogbezina" />
+
+      <div class="row">
+        <div>
+          <label for="farmName">Farm name</label>
+          <input id="farmName" placeholder="Example: My Cassava Plot" />
+        </div>
+        <div>
+          <label for="crop">Crop</label>
+          <select id="crop">
+            <option>Cassava</option>
+            <option>Maize</option>
+            <option>Yam</option>
+            <option>Rice</option>
+            <option>Groundnut</option>
+            <option>Cocoa</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="state">State</label>
+          <select id="state"></select>
+        </div>
+        <div>
+          <label for="size">Size in hectares</label>
+          <input id="size" type="number" min="0" step="0.1" placeholder="Example: 1.5" />
+        </div>
+      </div>
+
+      <label for="plantingDate">Planting date</label>
+      <input id="plantingDate" type="date" />
+
+      <label for="notes">Notes</label>
+      <textarea id="notes" placeholder="Example: Planted TME 419, sandy loam, weeded week 2"></textarea>
+
+      <button class="btn" id="saveBtn">Save farm</button>
+      <button class="btn secondary" id="syncBtn">Sync now</button>
+      <p><small>Saved on your phone first. Sent to the server when internet is available.</small></p>
+    </div>
+
+    <div class="card">
+      <h2>Saved farms</h2>
+      <div id="entries"></div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>
+      Built by <strong>Daniel Oyanogbezina</strong> —
+      AgriTech AI Platform — Day 13 of 365
+    </p>
+    <p class="footer-sub">
+      Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
+    </p>
+    <p style="margin-top:.75rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+      <a href="index.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Yield Predictor</a>
+      <a href="analytics.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Analytics</a>
+      <a href="disease.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Disease Guide</a>
+    </p>
+  </footer>
+
+  <script src="js/journal.js"></script>
+  <!-- Register service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('/AgriTech-AI-Platform/sw.js')
+          .then(reg => console.log('[PWA] Registered:', reg.scope))
+          .catch(err => console.log('[PWA] Failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

@@ -4,6 +4,7 @@ Author : Daniel Oyanogbezina
 Day 11 : Added /api/diseases endpoints
 Day 13 : Added /api/journal endpoints, offline first farm journal
 Day 24 : Added /api/activity endpoints, offline first farm activity log
+Day 25 : Added /api/expenses endpoints, offline first cost tracker
 """
 
 import sys
@@ -32,8 +33,24 @@ from advisory import (
 )
 from predictor import predict_and_advise, MODEL_LOADED
 from database import log_prediction, get_analytics
-from journal import add_entry as journal_add, get_entries as journal_list, delete_entry as journal_delete, get_stats as journal_stats
-from activity import add_activity as activity_add, get_activities as activity_list, delete_activity as activity_delete, get_activity_stats as activity_stats
+from journal import (
+    add_entry as journal_add,
+    get_entries as journal_list,
+    delete_entry as journal_delete,
+    get_stats as journal_stats,
+)
+from activity import (
+    add_activity as activity_add,
+    get_activities as activity_list,
+    delete_activity as activity_delete,
+    get_activity_stats as activity_stats,
+)
+from expenses import (
+    add_expense as expense_add,
+    get_expenses as expense_list,
+    delete_expense as expense_delete,
+    get_expense_stats as expense_stats,
+)
 
 app = Flask(__name__)
 CORS(app)
@@ -52,7 +69,7 @@ def ok_response(data: dict):
 def home():
     return ok_response({
         "name": "AgriTech AI Platform API",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "author": "Daniel Oyanogbezina",
         "mission": "AI-powered farming advice for Nigerian farmers",
         "endpoints": {
@@ -73,6 +90,9 @@ def home():
             "GET /api/activity": "List farm activities",
             "POST /api/activity": "Save a farm activity",
             "DELETE /api/activity/<id>": "Delete a farm activity",
+            "GET /api/expenses": "List expenses and spend summary",
+            "POST /api/expenses": "Save a farm expense",
+            "DELETE /api/expenses/<id>": "Delete a farm expense",
         },
         "supported_crops": SUPPORTED_CROPS,
     })
@@ -85,7 +105,7 @@ def health():
         "status": "online",
         "model_loaded": MODEL_LOADED,
         "timestamp": datetime.datetime.now().isoformat(),
-        "server": "AgriTech AI Platform v1.4",
+        "server": "AgriTech AI Platform v1.5",
     })
 
 
@@ -361,6 +381,34 @@ def activity_delete_one(activity_id):
     return ok_response({"deleted": activity_id})
 
 
+# ── 16: Expense list and save ──────────────────────────────
+@app.route("/api/expenses", methods=["GET", "POST"])
+def expenses():
+    if request.method == "GET":
+        limit = request.args.get("limit", 100)
+        return ok_response({
+            "expenses": expense_list(limit),
+            "stats": expense_stats(),
+        })
+    body = request.get_json(silent=True)
+    if not body:
+        return error_response("Request body must be JSON.")
+    try:
+        entry = expense_add(body)
+        return ok_response({"entry": entry})
+    except Exception as e:
+        return error_response(f"Could not save expense: {e}")
+
+
+# ── 17: Expense delete ─────────────────────────────────────
+@app.route("/api/expenses/<expense_id>", methods=["DELETE"])
+def expense_delete_one(expense_id):
+    ok = expense_delete(expense_id)
+    if not ok:
+        return error_response("Expense not found.", 404)
+    return ok_response({"deleted": expense_id})
+
+
 # ── Error handlers ─────────────────────────────────────────
 @app.errorhandler(404)
 def not_found(e):
@@ -381,33 +429,36 @@ def server_error(e):
 # ── Run ────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("  AgriTech AI Platform — Farmer Advisory API v1.4")
-    print("  Author: Daniel Oyanogbezina")
+    print(" AgriTech AI Platform — Farmer Advisory API v1.5")
+    print(" Author: Daniel Oyanogbezina")
     print("=" * 60)
-    print(f"  Model loaded    : {MODEL_LOADED}")
-    print(f"  Supported crops : {SUPPORTED_CROPS}")
-    print(f"  Nigerian states : {len(NIGERIAN_STATES)}")
-    print(f"  Diseases loaded : {sum(get_all_diseases().values())}")
+    print(f" Model loaded : {MODEL_LOADED}")
+    print(f" Supported crops : {SUPPORTED_CROPS}")
+    print(f" Nigerian states : {len(NIGERIAN_STATES)}")
+    print(f" Diseases loaded : {sum(get_all_diseases().values())}")
     print()
-    print("  Endpoints (15 total):")
-    print("  GET    http://127.0.0.1:5001/")
-    print("  GET    http://127.0.0.1:5001/health")
-    print("  GET    http://127.0.0.1:5001/api/crops")
-    print("  POST   http://127.0.0.1:5001/api/predict")
-    print("  GET    http://127.0.0.1:5001/api/calendar/<crop>")
-    print("  GET    http://127.0.0.1:5001/api/advice/<crop>")
-    print("  GET    http://127.0.0.1:5001/api/weather/<state>")
-    print("  GET    http://127.0.0.1:5001/api/states")
-    print("  GET    http://127.0.0.1:5001/api/analytics")
-    print("  GET    http://127.0.0.1:5001/api/diseases/<crop>")
-    print("  GET    http://127.0.0.1:5001/api/diseases")
-    print("  GET    http://127.0.0.1:5001/api/journal")
-    print("  POST   http://127.0.0.1:5001/api/journal")
-    print("  DELETE http://127.0.0.1:5001/api/journal/<id>")
-    print("  GET    http://127.0.0.1:5001/api/activity        <- NEW Day 24")
-    print("  POST   http://127.0.0.1:5001/api/activity        <- NEW Day 24")
-    print("  DELETE http://127.0.0.1:5001/api/activity/<id>   <- NEW Day 24")
+    print(" Routes (17 total):")
+    print(" GET http://127.0.0.1:5001/")
+    print(" GET http://127.0.0.1:5001/health")
+    print(" GET http://127.0.0.1:5001/api/crops")
+    print(" POST http://127.0.0.1:5001/api/predict")
+    print(" GET http://127.0.0.1:5001/api/calendar/<crop>")
+    print(" GET http://127.0.0.1:5001/api/advice/<crop>")
+    print(" GET http://127.0.0.1:5001/api/weather/<state>")
+    print(" GET http://127.0.0.1:5001/api/states")
+    print(" GET http://127.0.0.1:5001/api/analytics")
+    print(" GET http://127.0.0.1:5001/api/diseases/<crop>")
+    print(" GET http://127.0.0.1:5001/api/diseases")
+    print(" GET http://127.0.0.1:5001/api/journal")
+    print(" POST http://127.0.0.1:5001/api/journal")
+    print(" DELETE http://127.0.0.1:5001/api/journal/<id>")
+    print(" GET http://127.0.0.1:5001/api/activity")
+    print(" POST http://127.0.0.1:5001/api/activity")
+    print(" DELETE http://127.0.0.1:5001/api/activity/<id>")
+    print(" GET http://127.0.0.1:5001/api/expenses <- NEW Day 25")
+    print(" POST http://127.0.0.1:5001/api/expenses <- NEW Day 25")
+    print(" DELETE http://127.0.0.1:5001/api/expenses/<id> <- NEW Day 25")
     print()
-    print("  Press CTRL+C to stop")
+    print(" Press CTRL+C to stop")
     print("=" * 60 + "\n")
     app.run(host="127.0.0.1", port=5001, debug=True)
