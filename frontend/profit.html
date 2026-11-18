@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AgriTech AI — Profit Calculator</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+.profit-wrap { max-width: 900px; margin: 0 auto; padding: 1rem; }
+.card { background: #fff; border-radius: 14px; padding: 1.2rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+.card h2 { margin-top: 0; color: #1a6b3c; }
+label { display: block; font-weight: 700; margin: .7rem 0 .3rem; }
+input, select, textarea { width: 100%; padding: .65rem; border-radius: 10px; border: 1px solid #cbd5cc; font-size: 1rem; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+@media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+.btn { display: inline-block; background: #1a6b3c; color: #fff; border: none; padding: .7rem 1.2rem; border-radius: 24px; font-weight: 800; cursor: pointer; margin-top: .9rem; margin-right: .6rem; }
+.btn.secondary { background: #fff; color: #1a6b3c; border: 2px solid #1a6b3c; }
+.pill { display: inline-block; background: #e8f5ec; color: #1a6b3c; padding: .3rem .8rem; border-radius: 20px; font-weight: 700; margin: .2rem; }
+.pill.loss { background: #fde8e8; color: #b91c1c; }
+.pill.profit { background: #1a6b3c; color: #fff; }
+.result-box { border-left: 5px solid #1a6b3c; padding: 1rem; background: #f7faf7; border-radius: 10px; margin: .7rem 0; }
+.result-box.loss { border-left-color: #b91c1c; background: #fef2f2; }
+.result-box small { color: #555; }
+.status-dot { font-weight: 800; }
+.type-badge { display: inline-block; background: #1a6b3c; color: #fff; padding: .2rem .7rem; border-radius: 16px; font-size: .8rem; font-weight: 800; }
+.type-badge.loss { background: #b91c1c; }
+.footer { text-align: center; padding: 2rem 1rem; background: #1a6b3c; color: #fff; margin-top: 2rem; }
+.footer-sub { opacity: .85; }
+table { width: 100%; border-collapse: collapse; margin: .5rem 0; }
+th, td { padding: .6rem; text-align: left; border-bottom: 1px solid #e2e8e2; }
+th { color: #1a6b3c; font-weight: 800; }
+</style>
+<!-- PWA support -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#1a6b3c" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="AgriTech AI" />
+<link rel="apple-touch-icon" href="icons/icon.svg" />
+</head>
+<body>
+<header style="background:#1a6b3c;color:#fff;padding:1.2rem;text-align:center;">
+<h1 style="margin:0;">📊 Profit Calculator</h1>
+<p style="margin:.3rem 0 0;opacity:.9;">Combine your farm costs with expected yield to see profit or loss per crop.</p>
+<p>
+<a href="index.html" style="color:#fff;">Yield Predictor</a> ·
+<a href="analytics.html" style="color:#fff;">Analytics</a> ·
+<a href="disease.html" style="color:#fff;">Disease Guide</a> ·
+<a href="journal.html" style="color:#fff;">Farm Journal</a> ·
+<a href="activity.html" style="color:#fff;">Activity Log</a> ·
+<a href="expenses.html" style="color:#fff;">Cost Tracker</a> ·
+<strong>Profit Calc</strong>
+</p>
+</header>
+
+<main class="profit-wrap">
+<div class="card">
+<h2>Calculate profit for a crop</h2>
+<p id="syncStatus">Loading expense data…</p>
+<div id="statPills"></div>
+
+<div class="row">
+<div>
+<label for="crop">Crop</label>
+<select id="crop">
+<option>Cassava</option>
+<option>Maize</option>
+<option>Yam</option>
+<option>Rice</option>
+<option>Groundnut</option>
+<option>Cocoa</option>
+</select>
+</div>
+<div>
+<label for="expectedYield">Expected yield (kg)</label>
+<input id="expectedYield" type="number" min="0" step="0.1" placeholder="Example: 2000" />
+</div>
+</div>
+
+<div class="row">
+<div>
+<label for="sellingPrice">Selling price (₦ per kg)</label>
+<input id="sellingPrice" type="number" min="0" step="0.01" placeholder="Market price auto-filled" />
+</div>
+<div>
+<label for="totalCost">Total cost (₦)</label>
+<input id="totalCost" type="number" min="0" step="0.01" placeholder="Auto-filled from expenses" />
+</div>
+</div>
+
+<button class="btn" id="calcBtn">Calculate profit</button>
+<button class="btn secondary" id="refreshBtn">Refresh costs</button>
+</div>
+
+<div class="card">
+<h2>Result</h2>
+<div id="result"></div>
+</div>
+
+<div class="card">
+<h2>Expense summary by crop</h2>
+<div id="costTable"></div>
+</div>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+<p>
+Built by <strong>Daniel Oyanogbezina</strong> —
+AgriTech AI Platform — Day 26 of 365
+</p>
+<p class="footer-sub">
+Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
+</p>
+<p style="margin-top:.75rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+<a href="index.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Yield Predictor</a>
+<a href="analytics.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Analytics</a>
+<a href="disease.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Disease Guide</a>
+<a href="journal.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Farm Journal</a>
+<a href="activity.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Activity Log</a>
+<a href="expenses.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Cost Tracker</a>
+<strong style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Profit Calc</strong>
+</p>
+</footer>
+
+<script src="js/profit.js"></script>
+<!-- Register service worker -->
+<script>
+if ('serviceWorker' in navigator) {
+window.addEventListener('load', () => {
+navigator.serviceWorker
+.register('/AgriTech-AI-Platform/sw.js')
+.then(reg => console.log('[PWA] Registered:', reg.scope))
+.catch(err => console.log('[PWA] Failed:', err));
+});
+}
+</script>
+</body>
+</html>
