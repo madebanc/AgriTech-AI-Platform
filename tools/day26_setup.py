@@ -1,6 +1,5 @@
 import os
 import re
-import shutil
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS = os.path.join(ROOT, "docs")
@@ -22,12 +21,16 @@ for name in PAGES:
     with open(path, "r", encoding="utf-8") as f:
         text = f.read()
 
+    # Replace Day 25 -> Day 26 in footer text
     text = text.replace("Day 25 of 365", "Day 26 of 365")
 
+    # Insert Profit Calc link after Cost Tracker if not already present
     if "Profit Calc" not in text:
+        # Find "Cost Tracker" followed by </a> or </strong>
         m = re.search(r"Cost Tracker</(?:a|strong)>", text)
         if m:
             insert_pos = m.end()
+            # Check if there's a newline right after
             if insert_pos < len(text) and text[insert_pos] == "\n":
                 text = text[:insert_pos] + "\n" + PROFIT_LINK + text[insert_pos:]
             else:
@@ -37,19 +40,23 @@ for name in PAGES:
         f.write(text)
     print(f"Checked {name}")
 
+# Bump service worker cache
 sw_path = os.path.join(DOCS, "sw.js")
 if os.path.exists(sw_path):
     with open(sw_path, "r", encoding="utf-8") as f:
         sw = f.read()
 
+    # Bump cache name v13 -> v14
     sw = sw.replace("agritech-ai-v13", "agritech-ai-v14")
 
+    # Add Day 26 comment if not present
     if "Day 26" not in sw:
         sw = sw.replace(
             "// Day 25: Added expenses.html and expenses.js",
             "// Day 25: Added expenses.html and expenses.js\n// Day 26: Added profit.html and profit.js",
         )
 
+    # Add profit files to CACHE_FILES if not present
     if "/AgriTech-AI-Platform/profit.html" not in sw:
         sw = sw.replace(
             "  '/AgriTech-AI-Platform/expenses.html',\n",
@@ -65,6 +72,8 @@ if os.path.exists(sw_path):
         f.write(sw)
     print("Checked sw.js")
 
+# Mirror docs into frontend
+import shutil
 if os.path.exists(FRONTEND):
     for item in os.listdir(DOCS):
         src = os.path.join(DOCS, item)

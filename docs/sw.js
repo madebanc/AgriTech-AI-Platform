@@ -6,6 +6,8 @@
 * Day 15 : New input helpers stay cached page to offline cache
 * Day 24 : Adds activity log page to offline cache
 * Day 25 : Adds cost tracker page to offline cache
+* Day 26 : Adds profit calculator to offline cache
+* Day 28 : Confirms profit assets and combined farm report are cached
 *
 * How it works:
 * 1. On install — downloads and caches all app files
@@ -13,7 +15,7 @@
 * 3. On activate — removes old cached versions
 */
 
-const CACHE_NAME = 'agritech-ai-v14';
+const CACHE_NAME = 'agritech-ai-v15';
 const OFFLINE_URL = '/AgriTech-AI-Platform/index.html';
 
 // Files to cache on install (the entire app shell)
@@ -25,6 +27,7 @@ const CACHE_FILES = [
 '/AgriTech-AI-Platform/journal.html',
 '/AgriTech-AI-Platform/activity.html',
 '/AgriTech-AI-Platform/expenses.html',
+'/AgriTech-AI-Platform/profit.html',
 '/AgriTech-AI-Platform/css/style.css',
 '/AgriTech-AI-Platform/js/app.js',
 '/AgriTech-AI-Platform/js/analytics.js',
@@ -32,6 +35,7 @@ const CACHE_FILES = [
 '/AgriTech-AI-Platform/js/journal.js',
 '/AgriTech-AI-Platform/js/activity.js',
 '/AgriTech-AI-Platform/js/expenses.js',
+'/AgriTech-AI-Platform/js/profit.js',
 '/AgriTech-AI-Platform/js/translations.js',
 '/AgriTech-AI-Platform/icons/icon.svg',
 '/AgriTech-AI-Platform/manifest.json',

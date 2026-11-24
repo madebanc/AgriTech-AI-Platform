@@ -9,12 +9,14 @@
 .profit-wrap { max-width: 900px; margin: 0 auto; padding: 1rem; }
 .card { background: #fff; border-radius: 14px; padding: 1.2rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
 .card h2 { margin-top: 0; color: #1a6b3c; }
+.card h3 { margin: 1.1rem 0 .4rem; color: #1a6b3c; font-size: 1.05rem; }
 label { display: block; font-weight: 700; margin: .7rem 0 .3rem; }
 input, select, textarea { width: 100%; padding: .65rem; border-radius: 10px; border: 1px solid #cbd5cc; font-size: 1rem; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
 @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
 .btn { display: inline-block; background: #1a6b3c; color: #fff; border: none; padding: .7rem 1.2rem; border-radius: 24px; font-weight: 800; cursor: pointer; margin-top: .9rem; margin-right: .6rem; }
 .btn.secondary { background: #fff; color: #1a6b3c; border: 2px solid #1a6b3c; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
 .pill { display: inline-block; background: #e8f5ec; color: #1a6b3c; padding: .3rem .8rem; border-radius: 20px; font-weight: 700; margin: .2rem; }
 .pill.loss { background: #fde8e8; color: #b91c1c; }
 .pill.profit { background: #1a6b3c; color: #fff; }
@@ -29,6 +31,15 @@ input, select, textarea { width: 100%; padding: .65rem; border-radius: 10px; bor
 table { width: 100%; border-collapse: collapse; margin: .5rem 0; }
 th, td { padding: .6rem; text-align: left; border-bottom: 1px solid #e2e8e2; }
 th { color: #1a6b3c; font-weight: 800; }
+.muted { color: #5b6b5e; font-size: .92rem; }
+.empty { color: #5b6b5e; font-style: italic; margin: .4rem 0; }
+.report-section { border-top: 1px solid #e2e8e2; padding-top: .3rem; }
+@media print {
+body * { visibility: hidden; }
+#report, #report * { visibility: visible; }
+#report { position: absolute; left: 0; top: 0; width: 100%; }
+.btn, #reportStatus { display: none !important; }
+}
 </style>
 <!-- PWA support -->
 <link rel="manifest" href="manifest.json" />
@@ -50,7 +61,7 @@ th { color: #1a6b3c; font-weight: 800; }
 <a href="journal.html" style="color:#fff;">Farm Journal</a> ·
 <a href="activity.html" style="color:#fff;">Activity Log</a> ·
 <a href="expenses.html" style="color:#fff;">Cost Tracker</a> ·
-<strong>Profit Calc</strong>
+<a href="profit.html" style="color:#fff;">Profit Calc</a>
 </p>
 </header>
 
@@ -85,7 +96,7 @@ th { color: #1a6b3c; font-weight: 800; }
 </div>
 <div>
 <label for="totalCost">Total cost (₦)</label>
-<input id="totalCost" type="number" min="0" step="0.01" placeholder="Auto-filled from expenses" />
+<input id="totalCost" type="number" min="0" step="0.01" placeholder="Auto-filled from expenses" readonly />
 </div>
 </div>
 
@@ -102,13 +113,23 @@ th { color: #1a6b3c; font-weight: 800; }
 <h2>Expense summary by crop</h2>
 <div id="costTable"></div>
 </div>
+
+<div class="card">
+<h2>My farm report</h2>
+<p class="muted">One tap pulls your latest activities, expenses, crop costs and journal notes together.</p>
+<button class="btn" id="reportBtn">Build my farm report</button>
+<button class="btn secondary" id="downloadBtn" disabled>Download report</button>
+<button class="btn secondary" id="printBtn" disabled>Print report</button>
+<p id="reportStatus">Report not built yet.</p>
+<div id="report"></div>
+</div>
 </main>
 
 <!-- FOOTER -->
 <footer class="footer">
 <p>
 Built by <strong>Daniel Oyanogbezina</strong> —
-AgriTech AI Platform — Day 26 of 365
+AgriTech AI Platform — Day 28 of 365
 </p>
 <p class="footer-sub">
 Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
@@ -120,7 +141,7 @@ Empowering Nigerian farmers with AI — MSc Agroforestry, FUNAAB
 <a href="journal.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Farm Journal</a>
 <a href="activity.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Activity Log</a>
 <a href="expenses.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Cost Tracker</a>
-<strong style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Profit Calc</strong>
+<a href="profit.html" style="color:rgba(255,255,255,.85); font-weight:700; text-decoration:none; font-size:.875rem; border:1px solid rgba(255,255,255,.4); padding:.3rem .8rem; border-radius:20px;">Profit Calc</a>
 </p>
 </footer>
 
